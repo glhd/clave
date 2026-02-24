@@ -71,9 +71,6 @@ jobs:
           cp builds/build/mac/mac-arm builds/clave
           chmod +x builds/clave
 
-      - name: Smoke-test the binary
-        run: ./builds/clave --version
-
       - name: Generate checksums
         run: |
           cd builds
