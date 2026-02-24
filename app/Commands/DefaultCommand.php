@@ -9,6 +9,7 @@ use App\Pipeline\BootVm;
 use App\Pipeline\CloneVm;
 use App\Pipeline\CreateWorktree;
 use App\Pipeline\RunClaudeCode;
+use App\Services\AuthManager;
 use App\Services\GitManager;
 use App\Services\SessionTeardown;
 use App\Services\TartManager;
@@ -27,9 +28,10 @@ class DefaultCommand extends Command
 	public function handle(
 		GitManager $git,
 		TartManager $tart,
+		AuthManager $auth,
 		SessionTeardown $teardown,
 	): int {
-		if (! $this->preflight($git, $tart)) {
+		if (! $this->preflight($git, $tart, $auth)) {
 			return self::FAILURE;
 		}
 		
@@ -85,7 +87,7 @@ class DefaultCommand extends Command
 		return self::SUCCESS;
 	}
 	
-	protected function preflight(GitManager $git, TartManager $tart): bool
+	protected function preflight(GitManager $git, TartManager $tart, AuthManager $auth): bool
 	{
 		$cwd = getcwd();
 		
@@ -104,12 +106,20 @@ class DefaultCommand extends Command
 		$base_vm = config('clave.base_vm');
 		if (! $tart->exists($base_vm)) {
 			$this->info("Base VM image '{$base_vm}' not found. Provisioning...");
-
+			
 			if (self::FAILURE === $this->call('provision')) {
 				return false;
 			}
 		}
-
+		
+		if (! $auth->hasAuth()) {
+			$this->info('No authentication configured. Setting up Claude Code token...');
+			
+			if (! $auth->setupToken()) {
+				$this->warn('Authentication setup was not completed. Claude on the VM may prompt for login.');
+			}
+		}
+		
 		return true;
 	}
 }

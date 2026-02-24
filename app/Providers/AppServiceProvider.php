@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\AuthManager;
 use App\Services\GitManager;
 use App\Services\HerdManager;
 use App\Services\SessionTeardown;
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
 			&& ! $this->app->runningUnitTests()
 			&& extension_loaded('pcntl'));
 
+		$this->app->singleton(AuthManager::class);
 		$this->app->singleton(TartManager::class);
 		$this->app->singleton(GitManager::class);
 		$this->app->singleton(SshExecutor::class);

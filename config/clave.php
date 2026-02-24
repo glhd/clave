@@ -3,13 +3,13 @@
 return [
 	'base_image' => env('CLAVE_BASE_IMAGE', 'ghcr.io/cirruslabs/ubuntu:latest'),
 	'base_vm' => env('CLAVE_BASE_VM', 'clave-base'),
-
+	
 	'vm' => [
 		'cpus' => env('CLAVE_VM_CPUS', 4),
 		'memory' => env('CLAVE_VM_MEMORY', 8192),
 		'display' => env('CLAVE_VM_DISPLAY', 'none'),
 	],
-
+	
 	'ssh' => [
 		'user' => env('CLAVE_SSH_USER', 'admin'),
 		'port' => env('CLAVE_SSH_PORT', 22),
@@ -21,6 +21,8 @@ return [
 			'ConnectTimeout' => '5',
 		],
 	],
-
+	
 	'anthropic_api_key' => env('ANTHROPIC_API_KEY'),
+	'oauth_token' => env('CLAUDE_CODE_OAUTH_TOKEN'),
+	'auth_file' => env('CLAVE_AUTH_FILE', ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave/auth.json'),
 ];
