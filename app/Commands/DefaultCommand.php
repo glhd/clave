@@ -9,15 +9,15 @@ use App\Pipelines\ClaudeCodePipeline;
 use App\Pipelines\PreflightPipeline;
 use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
-use LaravelZero\Framework\Commands\Command;
 use function Laravel\Prompts\clear;
 use function Laravel\Prompts\error;
+use LaravelZero\Framework\Commands\Command;
 
 class DefaultCommand extends Command
 {
 	protected $signature = 'default {--on-exit= : Action on exit: keep, merge, discard}';
 	
-	protected $description = 'Start a Clave session in the current Laravel project';
+	protected $description = 'Start a Clave session in the current project';
 	
 	protected $hidden = true;
 	

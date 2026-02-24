@@ -27,6 +27,8 @@ class SessionContext
 	
 	public ?ServiceConfig $services = null;
 	
+	public Recipe $recipe = Recipe::Unknown;
+
 	public ?Session $session = null;
 	
 	public function __construct(

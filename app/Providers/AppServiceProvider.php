@@ -5,9 +5,9 @@ namespace App\Providers;
 use App\Pipelines\ClaudeCodePipeline;
 use App\Pipelines\PreflightPipeline;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\SaveSession;
-use App\Pipelines\Steps\ValidateProject;
 use App\Support\AuthManager;
 use App\Support\GitManager;
 use App\Support\HerdManager;
@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(SessionTeardown::class);
 		$this->app->singleton(SaveSession::class);
 		
-		$this->app->singleton(ValidateProject::class);
+		$this->app->singleton(DetectRecipe::class);
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
 	}

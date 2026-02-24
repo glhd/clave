@@ -3,10 +3,10 @@
 namespace App\Pipelines;
 
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
 use App\Pipelines\Steps\SaveSession;
-use App\Pipelines\Steps\ValidateProject;
 
 class PreflightPipeline extends SessionPipeline
 {
@@ -18,7 +18,7 @@ class PreflightPipeline extends SessionPipeline
 	protected function steps(): array
 	{
 		return [
-			ValidateProject::class,
+			DetectRecipe::class,
 			GetGitBranch::class,
 			EnsureVmExists::class,
 			CheckClaudeAuthentication::class,
