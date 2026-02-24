@@ -19,8 +19,10 @@ class RunClaudeCode
 
 		$context->status('Starting Claude Code session...');
 
+		$env = $api_key ? "ANTHROPIC_API_KEY={$api_key} " : '';
+
 		$this->ssh->interactive(
-			"cd {$project_dir} && ANTHROPIC_API_KEY={$api_key} claude --dangerously-skip-permissions"
+			"cd {$project_dir} && {$env}claude --dangerously-skip-permissions"
 		);
 
 		return $next($context);

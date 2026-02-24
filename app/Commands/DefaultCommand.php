@@ -108,12 +108,6 @@ class DefaultCommand extends Command
 			return false;
 		}
 
-		if (! config('clave.anthropic_api_key')) {
-			$this->error('ANTHROPIC_API_KEY is not set. Add it to your .env file.');
-
-			return false;
-		}
-
 		return true;
 	}
 }
