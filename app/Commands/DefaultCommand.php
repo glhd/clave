@@ -103,9 +103,11 @@ class DefaultCommand extends Command
 
 		$base_vm = config('clave.base_vm');
 		if (! $tart->exists($base_vm)) {
-			$this->error("Base VM image '{$base_vm}' not found. Run 'clave provision' first.");
+			$this->info("Base VM image '{$base_vm}' not found. Provisioning...");
 
-			return false;
+			if (self::FAILURE === $this->call('provision')) {
+				return false;
+			}
 		}
 
 		return true;
