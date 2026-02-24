@@ -58,10 +58,10 @@ test('status writes to output', function() {
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
 		base_branch: 'main',
-		output: $output,
+		command: $output,
 	);
 
-	$context->status('Hello world');
+	$context->info('Hello world');
 
 	expect($output->fetch())->toContain('Hello world');
 });
@@ -74,7 +74,7 @@ test('status is safe without output', function() {
 		base_branch: 'main',
 	);
 
-	$context->status('No output set');
+	$context->info('No output set');
 
 	expect(true)->toBeTrue();
 });

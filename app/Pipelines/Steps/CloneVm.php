@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Pipeline;
+namespace App\Pipelines\Steps;
 
 use App\Dto\SessionContext;
-use App\Services\TartManager;
+use App\Support\TartManager;
 use Closure;
 
 class CloneVm
@@ -17,7 +17,7 @@ class CloneVm
 		$vm_name = "clave-{$context->session_id}";
 		$base_vm = config('clave.base_vm');
 
-		$context->status("Cloning VM: {$base_vm} → {$vm_name}");
+		$context->info("Cloning VM: {$base_vm} → {$vm_name}");
 		$this->tart->clone($base_vm, $vm_name);
 		$this->tart->randomizeMac($vm_name);
 

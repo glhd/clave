@@ -2,7 +2,7 @@
 
 namespace App\Commands;
 
-use App\Services\AuthManager;
+use App\Support\AuthManager;
 use LaravelZero\Framework\Commands\Command;
 
 class AuthCommand extends Command

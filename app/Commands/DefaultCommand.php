@@ -4,18 +4,14 @@ namespace App\Commands;
 
 use App\Dto\OnExit;
 use App\Dto\SessionContext;
-use App\Models\Session;
-use App\Pipeline\BootVm;
-use App\Pipeline\CloneVm;
-use App\Pipeline\CreateWorktree;
-use App\Pipeline\RunClaudeCode;
-use App\Services\AuthManager;
-use App\Services\GitManager;
-use App\Services\SessionTeardown;
-use App\Services\TartManager;
-use Illuminate\Pipeline\Pipeline;
+use App\Exceptions\AbortedPipelineException;
+use App\Pipelines\ClaudeCodePipeline;
+use App\Pipelines\PreflightPipeline;
+use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
+use function Laravel\Prompts\clear;
+use function Laravel\Prompts\error;
 
 class DefaultCommand extends Command
 {
@@ -26,103 +22,57 @@ class DefaultCommand extends Command
 	protected $hidden = true;
 	
 	public function handle(
-		GitManager $git,
-		TartManager $tart,
-		AuthManager $auth,
 		SessionTeardown $teardown,
 	): int {
-		$this->newLine();
-		
-		if (! $this->preflight($git, $tart, $auth)) {
+		try {
+			clear();
+			
+			$this->newLine();
+			
+			$this->callSilently('migrate', ['--force' => true]);
+			
+			$context = $this->newContext();
+			
+			app(PreflightPipeline::class)->handle($context);
+			
+			$this->info("Starting Clave session: {$context->session_id}");
+			$this->info(" - Project: {$context->project_name} ({$context->base_branch})");
+			
+			$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
+				$this->newLine();
+				$this->info('Shutting down...');
+				$teardown($context, $this);
+			});
+			
+			try {
+				app(ClaudeCodePipeline::class)->handle($context);
+			} finally {
+				$this->newLine();
+				$this->info('Cleaning up...');
+				$teardown($context, $this);
+				$this->newLine();
+			}
+			
+			return self::SUCCESS;
+		} catch (AbortedPipelineException $exception) {
+			error($exception->getMessage());
+			$this->newLine();
+			
 			return self::FAILURE;
 		}
-		
-		$this->callSilently('migrate', ['--force' => true]);
-		
-		$session_id = Str::random(8);
-		$project_dir = getcwd();
-		$project_name = basename($project_dir);
-		$base_branch = $git->currentBranch($project_dir);
-		
-		$context = new SessionContext(
-			session_id: $session_id,
-			project_name: $project_name,
-			project_dir: $project_dir,
-			base_branch: $base_branch,
-			output: $this->output,
-		);
-		
-		$context->on_exit = OnExit::tryFrom($this->option('on-exit') ?? '');
-		
-		Session::create([
-			'session_id' => $session_id,
-			'project_dir' => $project_dir,
-			'project_name' => $project_name,
-			'branch' => $base_branch,
-			'started_at' => now(),
-		]);
-		
-		$this->info("Starting Clave session: {$session_id}");
-		$this->info("  Project: {$project_name} ({$base_branch})");
-		
-		$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
-			$this->newLine();
-			$this->info('Shutting down...');
-			$teardown($context, $this);
-		});
-		
-		try {
-			app(Pipeline::class)->send($context)
-				->through([
-					CreateWorktree::class,
-					CloneVm::class,
-					BootVm::class,
-					RunClaudeCode::class,
-				])
-				->thenReturn();
-		} finally {
-			$this->newLine();
-			$this->info('Cleaning up...');
-			$teardown($context, $this);
-			$this->newLine();
-		}
-		
-		return self::SUCCESS;
 	}
 	
-	protected function preflight(GitManager $git, TartManager $tart, AuthManager $auth): bool
+	protected function newContext(): SessionContext
 	{
-		$cwd = getcwd();
+		$project_dir = getcwd();
+		$project_name = basename($project_dir);
 		
-		if (! file_exists($cwd.'/artisan')) {
-			$this->error('This does not appear to be a Laravel project (no artisan file found).');
-			
-			return false;
-		}
-		
-		if (! $git->isRepo($cwd)) {
-			$this->error('This directory is not a git repository.');
-			
-			return false;
-		}
-		
-		$base_vm = config('clave.base_vm');
-		if (! $tart->exists($base_vm)) {
-			$this->info("Base VM image '{$base_vm}' not found. Provisioning...");
-			
-			if (self::FAILURE === $this->call('provision')) {
-				return false;
-			}
-		}
-		
-		if (! $auth->hasAuth()) {
-			$this->info('No authentication configured. Setting up Claude Code token...');
-			
-			if (! $auth->setupToken()) {
-				$this->warn('Authentication setup was not completed. Claude on the VM may prompt for login.');
-			}
-		}
-		
-		return true;
+		return new SessionContext(
+			session_id: Str::random(8),
+			project_name: $project_name,
+			project_dir: $project_dir,
+			on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
+			command: $this,
+		);
 	}
 }

@@ -2,9 +2,9 @@
 
 namespace App\Commands;
 
-use App\Services\ProvisioningPipeline;
-use App\Services\SshExecutor;
-use App\Services\TartManager;
+use App\Support\ProvisioningPipeline;
+use App\Support\SshExecutor;
+use App\Support\TartManager;
 use LaravelZero\Framework\Commands\Command;
 
 class ProvisionCommand extends Command

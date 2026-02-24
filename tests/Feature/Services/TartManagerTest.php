@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\TartManager;
+use App\Support\TartManager;
 use Illuminate\Support\Facades\Process;
 
 beforeEach(function() {

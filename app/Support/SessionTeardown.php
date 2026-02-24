@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Support;
 
 use App\Dto\OnExit;
 use App\Dto\SessionContext;
@@ -42,7 +42,7 @@ class SessionTeardown
 		}
 		
 		rescue(fn() => $this->herd->unproxy($context->proxy_name));
-		$context->status("  Removed Herd proxy: {$context->proxy_name}");
+		$context->info("  Removed Herd proxy: {$context->proxy_name}");
 	}
 	
 	protected function killTunnel(SessionContext $context): void
@@ -52,7 +52,7 @@ class SessionTeardown
 		}
 		
 		rescue(fn() => $context->tunnel_process->stop());
-		$context->status('  Stopped SSH tunnel');
+		$context->info('  Stopped SSH tunnel');
 	}
 	
 	protected function stopVm(SessionContext $context): void
@@ -62,7 +62,7 @@ class SessionTeardown
 		}
 		
 		rescue(fn() => $this->tart->stop($context->vm_name));
-		$context->status("  Stopped VM: {$context->vm_name}");
+		$context->info("  Stopped VM: {$context->vm_name}");
 	}
 	
 	protected function deleteVm(SessionContext $context): void
@@ -72,7 +72,7 @@ class SessionTeardown
 		}
 		
 		rescue(fn() => $this->tart->delete($context->vm_name));
-		$context->status("  Deleted VM: {$context->vm_name}");
+		$context->info("  Deleted VM: {$context->vm_name}");
 	}
 	
 	protected function handleWorktree(SessionContext $context, ?Command $command): void
@@ -114,7 +114,7 @@ class SessionTeardown
 				default => 'Kept',
 			};
 			
-			$context->status("  {$label} worktree: {$context->worktree_branch}");
+			$context->info("  {$label} worktree: {$context->worktree_branch}");
 		});
 	}
 	

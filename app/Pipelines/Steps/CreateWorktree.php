@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Pipeline;
+namespace App\Pipelines\Steps;
 
 use App\Dto\SessionContext;
-use App\Services\GitManager;
+use App\Support\GitManager;
 use Closure;
 
 class CreateWorktree
@@ -19,7 +19,7 @@ class CreateWorktree
 
 		$this->git->ensureIgnored($context->project_dir, '.clave/');
 
-		$context->status("Creating worktree: {$branch}");
+		$context->info("Creating worktree: {$branch}");
 		$this->git->createWorktree($context->project_dir, $path, $branch);
 
 		$context->worktree_path = $path;

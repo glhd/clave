@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Pipeline;
+namespace App\Pipelines\Steps;
 
 use App\Dto\SessionContext;
-use App\Services\AuthManager;
-use App\Services\SshExecutor;
+use App\Support\AuthManager;
+use App\Support\SshExecutor;
 use Closure;
 
 class RunClaudeCode
@@ -19,12 +19,12 @@ class RunClaudeCode
 	{
 		$project_dir = '/srv/project';
 
-		$context->status('Starting Claude Code session...');
+		$context->info('Starting Claude Code session...');
 
 		$resolved = $this->auth->resolve();
 
 		if ($resolved !== null && $resolved['type'] === 'oauth') {
-			$context->status(' - Writing credentials file...');
+			$context->info(' - Writing credentials file...');
 			$this->writeCredentialsFile($resolved['value']);
 		}
 

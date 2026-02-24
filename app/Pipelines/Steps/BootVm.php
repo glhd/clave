@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Pipeline;
+namespace App\Pipelines\Steps;
 
 use App\Dto\SessionContext;
-use App\Services\SshExecutor;
-use App\Services\TartManager;
+use App\Support\SshExecutor;
+use App\Support\TartManager;
 use Closure;
 use RuntimeException;
 
@@ -22,25 +22,25 @@ class BootVm
 	{
 		$mount_path = $context->worktree_path ?? $context->project_dir;
 
-		$context->status("Booting VM: {$context->vm_name}");
-		$context->status("  Sharing: {$mount_path}");
+		$context->info("Booting VM: {$context->vm_name}");
+		$context->info("  Sharing: {$mount_path}");
 		$this->tart->runBackground($context->vm_name, [$mount_path]);
 
 		$this->ssh->usePassword(config('clave.ssh.password'));
 
-		$context->status('Waiting for VM IP address...');
+		$context->info('Waiting for VM IP address...');
 		$ip = $this->tart->ip($context->vm_name, $this->timeout);
 		$context->vm_ip = $ip;
 		$this->ssh->setHost($ip);
-		$context->status("  VM IP: {$ip}");
+		$context->info("  VM IP: {$ip}");
 
-		$context->status('Waiting for SSH...');
+		$context->info('Waiting for SSH...');
 		$this->waitForSsh($context);
-		$context->status('  SSH ready');
+		$context->info('  SSH ready');
 
-		$context->status('Mounting shared directories...');
+		$context->info('Mounting shared directories...');
 		$this->mountSharedDirectories($context);
-		$context->status('  Mounted /srv/project');
+		$context->info('  Mounted /srv/project');
 
 		return $next($context);
 	}
@@ -60,7 +60,7 @@ class BootVm
 
 				if ($output && $output !== $last_error) {
 					$last_error = $output;
-					$context->status("  Mount: {$output}");
+					$context->info("  Mount: {$output}");
 				}
 
 				$this->ssh->run('mountpoint -q /srv/project');
@@ -68,7 +68,7 @@ class BootVm
 				return;
 			} catch (\Throwable) {
 				$elapsed = time() - $start;
-				$context->status("  Waiting for VirtioFS mount ({$elapsed}s)...");
+				$context->info("  Waiting for VirtioFS mount ({$elapsed}s)...");
 				sleep(2);
 			}
 		}
@@ -113,7 +113,7 @@ class BootVm
 			$error = $this->ssh->lastError();
 			
 			if ($attempts > 5) {
-				$context->status(" - Attempt {$attempts} failed ({$elapsed}s elapsed)".($error ? ": {$error}" : ''));
+				$context->info(" - Attempt {$attempts} failed ({$elapsed}s elapsed)".($error ? ": {$error}" : ''));
 			}
 
 			sleep(2);

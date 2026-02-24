@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\AuthManager;
+use App\Support\AuthManager;
 
 beforeEach(function() {
 	$this->auth = new AuthManager();
