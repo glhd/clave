@@ -22,6 +22,8 @@ class DefaultCommand extends Command
 	protected $hidden = true;
 	
 	public function handle(
+		PreflightPipeline $preflight,
+		ClaudeCodePipeline $claude,
 		SessionTeardown $teardown,
 	): int {
 		try {
@@ -33,21 +35,21 @@ class DefaultCommand extends Command
 			
 			$context = $this->newContext();
 			
-			app(PreflightPipeline::class)->run($context);
+			$preflight->run($context);
 			
 			$this->line("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info> on branch <info>{$context->base_branch}</info>");
 			
 			$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
 				$this->newLine();
-				$teardown($context, $this);
+				$teardown->run($context);
 			});
 			
 			try {
-				app(ClaudeCodePipeline::class)->run($context);
+				$claude->run($context);
 			} finally {
 				$this->newLine();
 				$this->info('Cleaning up...');
-				$teardown($context, $this);
+				$teardown->run($context);
 				$this->newLine();
 			}
 			

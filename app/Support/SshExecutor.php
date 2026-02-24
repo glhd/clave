@@ -61,6 +61,7 @@ class SshExecutor
 	public function interactive(string $command): int
 	{
 		$exit_code = 0;
+		
 		passthru($this->buildCommand($command, tty: true), $exit_code);
 
 		return $exit_code;

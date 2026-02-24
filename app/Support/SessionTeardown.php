@@ -19,7 +19,7 @@ class SessionTeardown
 	
 	protected bool $completed = false;
 	
-	public function __invoke(SessionContext $context, ?Command $command = null): void
+	public function run(SessionContext $context): void
 	{
 		if ($this->completed) {
 			return;
@@ -31,7 +31,7 @@ class SessionTeardown
 		$this->killTunnel($context);
 		$this->stopVm($context);
 		$this->deleteVm($context);
-		$this->handleWorktree($context, $command);
+		$this->handleWorktree($context);
 		$this->deleteSession($context);
 	}
 	
@@ -75,7 +75,7 @@ class SessionTeardown
 		$context->info("  Deleted VM: {$context->vm_name}");
 	}
 	
-	protected function handleWorktree(SessionContext $context, ?Command $command): void
+	protected function handleWorktree(SessionContext $context): void
 	{
 		if ($context->worktree_path === null) {
 			return;
@@ -83,15 +83,11 @@ class SessionTeardown
 		
 		$action = $context->on_exit;
 		
-		if ($action === null && $command !== null) {
-			$action = OnExit::coerce(select(
-				label: 'What would you like to do with the worktree?',
-				options: OnExit::toSelectArray(),
-				default: OnExit::Keep->value,
-			));
-		}
-		
-		$action ??= OnExit::Keep;
+		$action ??= OnExit::coerce(select(
+			label: 'What would you like to do with the worktree?',
+			options: OnExit::toSelectArray(),
+			default: OnExit::Keep->value,
+		));
 		
 		rescue(function() use ($context, $action) {
 			match ($action) {
