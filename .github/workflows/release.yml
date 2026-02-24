@@ -63,18 +63,9 @@ jobs:
       - name: Build PHAR
         run: php clave app:build clave.phar --build-version=${{ github.ref_name }}
 
-      - name: Build standalone binary
-        run: ./vendor/bin/phpacker build mac arm --src=./builds/clave.phar --php=8.3
-
-      - name: Prepare release artifacts
-        run: |
-          cp builds/build/mac/mac-arm builds/clave
-          chmod +x builds/clave
-
       - name: Generate checksums
         run: |
           cd builds
-          shasum -a 256 clave > clave.sha256sum
           shasum -a 256 clave.phar > clave.phar.sha256sum
 
       - name: Import GPG key
@@ -90,10 +81,6 @@ jobs:
         run: |
           gpg --batch --pinentry-mode loopback \
             --passphrase "$GPG_PASSPHRASE" \
-            --detach-sign --output builds/clave.asc \
-            builds/clave
-          gpg --batch --pinentry-mode loopback \
-            --passphrase "$GPG_PASSPHRASE" \
             --detach-sign --output builds/clave.phar.asc \
             builds/clave.phar
 
@@ -104,9 +91,6 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            builds/clave
             builds/clave.phar
-            builds/clave.sha256sum
             builds/clave.phar.sha256sum
-            builds/clave.asc
             builds/clave.phar.asc
