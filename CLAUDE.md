@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Clave is a Laravel Zero CLI that spins up ephemeral Ubuntu VMs via [Tart](https://tart.run/) for isolated Claude Code sessions against Laravel projects. It integrates with Herd Pro on the macOS host for MySQL, Redis, and `.test` domain proxying.
-
-The binary is `clave` (project root). Run from within a Laravel project's git repo: `clave` handles worktree creation, VM lifecycle, networking, and teardown automatically.
+Clave is a Laravel Zero CLI that spins up ephemeral Ubuntu VMs via [Tart](https://tart.run/) for isolated Claude Code sessions against Laravel projects. Run `clave` from within a Laravel project's git repo — it handles worktree creation, VM lifecycle, networking, and teardown automatically. Multiple simultaneous sessions work naturally with unique worktrees, VMs, and ports.
 
 ## Commands
 
@@ -20,11 +18,11 @@ The binary is `clave` (project root). Run from within a Laravel project's git re
 # Run a single test by name
 ./vendor/bin/pest --filter="test name"
 
-# Format code
-./vendor/bin/pint
+# Format code (one file at a time)
+./vendor/bin/php-cs-fixer fix path/to/File.php
 
 # Lint code
-php clave lint
+php clave laralint:lint path/to/File.php [path/to/Other.php ...]
 
 # Build PHAR
 php clave app:build
@@ -32,56 +30,38 @@ php clave app:build
 
 ## Architecture
 
-**Laravel Zero 12** app using the Laravel Pipeline pattern for session lifecycle.
+**Laravel Zero 12** app (PHP 8.3+) using the Pipeline pattern for session lifecycle.
 
 ### Session Pipeline
 
-The core flow is a `SessionContext` DTO passed through pipeline stages in sequence:
+A `SessionContext` DTO flows through pipeline stages in `DefaultCommand`:
 
-`CreateWorktree → CloneVm → BootVm → DiscoverGateway → CreateSshTunnel → ConfigureHerdProxy → BootstrapLaravel → RunClaudeCode`
+`CreateWorktree → CloneVm → BootVm → RunClaudeCode`
 
-Each stage populates fields on `SessionContext` and calls `$next()`. Teardown runs in a `finally` block via `SessionTeardown`, which reverses each stage (remove proxy, kill tunnel, stop/delete VM, handle worktree).
+Each stage populates fields on `SessionContext` and calls `$next()`. Teardown runs via `SessionTeardown` in both a `finally` block and SIGINT/SIGTERM signal handler.
 
-### Planned Directory Layout
+Future stages (not yet implemented): `DiscoverGateway → CreateSshTunnel → ConfigureHerdProxy → BootstrapLaravel` (to be inserted between `BootVm` and `RunClaudeCode`).
 
-```
-app/
-├── Commands/          # CLI commands (DefaultCommand, ProvisionCommand, etc.)
-├── Dto/               # SessionContext, ServiceConfig
-├── Models/            # Session (SQLite tracking)
-├── Pipeline/          # One class per pipeline stage
-├── Services/          # TartManager, GitManager, HerdManager, SshExecutor, SessionTeardown
-└── Providers/
-```
+### Key Services (all registered as singletons)
 
-### Key Service Classes
-
-- **TartManager** — wraps the `tart` CLI for VM clone/run/stop/delete/ip operations
+- **TartManager** — wraps the `tart` CLI for VM clone/run/stop/delete/ip
 - **GitManager** — worktree create/remove/merge, .gitignore management
 - **SshExecutor** — SSH command execution, tunnels, interactive TTY sessions
-- **HerdManager** — Herd Pro proxy/unproxy
-- **ProvisioningPipeline** — idempotent base VM image setup steps (PHP, nginx, Claude Code, etc.)
+- **HerdManager** — Herd Pro proxy/unproxy (future use)
+- **SessionTeardown** — reverses each pipeline stage on exit
+- **ProvisioningPipeline** — generates bash provisioning script for base VM setup
 
-### External Dependencies
+### DTOs
 
-- **Tart** (`tart` CLI) — Apple Silicon VM management via Virtualization.framework
-- **Herd Pro** — host MySQL/Redis, `.test` domain proxying
-- **Claude Code** — installed inside the VM, run via SSH TTY
+- **SessionContext** — mutable pipeline state (session_id, vm_name, vm_ip, worktree_path, etc.)
+- **ServiceConfig** — readonly database/Redis config
+- **OnExit** — enum (Keep, Merge, Discard) for worktree handling on session end
 
 ## Conventions
 
-- Uses **Pest** for testing (not PHPUnit directly)
-- Uses **LaraLint** for linting (`glhd/laralint`)
-- Uses **PHP CS Fixer** for formatting
-- Commands auto-discovered from `app/Commands/`
-- Config in `config/` directory (Laravel Zero standard)
-
-## Guidelines
-
-### LaraLint
-
-This project uses `laralint` to lint files. Always run `php clave laralint:lint {files}` on new or changed PHP code.
-
-### PHP CS Fixer
-
-This project uses `php-cs-fixer` to automatically apply code style. Alwasy run `./vendor/bin/php-cs-fixer {files}` on new or changed code.
+- **Testing**: Pest (not PHPUnit). Tests using `Process::fake()` must be Feature tests (need app context).
+- **Formatting**: `php-cs-fixer` (NOT Pint). Run `./vendor/bin/php-cs-fixer fix <file>` — one file per invocation.
+- **Linting**: LaraLint (`glhd/laralint`). Run `php clave laralint:lint <files>` on new/changed PHP code.
+- **Variables**: snake_case for local variables (enforced by LaraLint).
+- **Class ordering**: LaraLint requires static methods before constructors.
+- **Return types**: Service methods returning process results use `mixed` return type to support `Process::fake()` in tests (since `FakeProcessResult` doesn't extend `ProcessResult`).
