@@ -47,5 +47,9 @@
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
-    "bin": ["clave"]
+    "bin": ["clave"],
+    "scripts": {
+        "fix-style": "vendor/bin/php-cs-fixer fix",
+        "check-style": "vendor/bin/php-cs-fixer fix --diff --dry-run"
+    }
 }
