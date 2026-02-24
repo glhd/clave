@@ -1,8 +1,0 @@
-name = "clave-run"
-main = "src/index.ts"
-compatibility_date = "2025-01-01"
-
-[[rules]]
-type = "Text"
-globs = ["**/*.sh"]
-fallthrough = false
