@@ -1,6 +1,9 @@
 <?php
 
 use App\Dto\SessionContext;
+use Illuminate\Console\OutputStyle;
+use LaravelZero\Framework\Commands\Command;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 test('construction sets readonly properties', function() {
@@ -8,8 +11,8 @@ test('construction sets readonly properties', function() {
 		session_id: 'abc123',
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
-		base_branch: 'main',
 	);
+	$context->base_branch = 'main';
 
 	expect($context->session_id)->toBe('abc123')
 		->and($context->project_name)->toBe('my-app')
@@ -22,7 +25,6 @@ test('mutable properties default to null', function() {
 		session_id: 'abc123',
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
-		base_branch: 'main',
 	);
 
 	expect($context->vm_name)->toBeNull()
@@ -41,7 +43,6 @@ test('mutable properties can be set', function() {
 		session_id: 'abc123',
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
-		base_branch: 'main',
 	);
 
 	$context->vm_name = 'clave-abc123';
@@ -52,18 +53,27 @@ test('mutable properties can be set', function() {
 });
 
 test('status writes to output', function() {
-	$output = new BufferedOutput();
+	$command = new class() extends Command {
+		protected $name = 'test';
+
+		public function handle()
+		{
+		}
+	};
+	$buffered = new BufferedOutput();
+	$output = new OutputStyle(new ArrayInput([]), $buffered);
+	$command->setOutput($output);
+
 	$context = new SessionContext(
 		session_id: 'abc123',
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
-		base_branch: 'main',
-		command: $output,
+		command: $command,
 	);
 
 	$context->info('Hello world');
 
-	expect($output->fetch())->toContain('Hello world');
+	expect($buffered->fetch())->toContain('Hello world');
 });
 
 test('status is safe without output', function() {
@@ -71,7 +81,6 @@ test('status is safe without output', function() {
 		session_id: 'abc123',
 		project_name: 'my-app',
 		project_dir: '/path/to/app',
-		base_branch: 'main',
 	);
 
 	$context->info('No output set');

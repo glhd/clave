@@ -5,12 +5,10 @@ namespace App\Pipelines\Steps;
 use App\Dto\SessionContext;
 use App\Support\GitManager;
 use Closure;
-use Illuminate\Filesystem\Filesystem;
 
 class GetGitBranch
 {
 	public function __construct(
-		protected Filesystem $fs,
 		protected GitManager $git,
 	) {
 	}
