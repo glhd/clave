@@ -1,6 +1,6 @@
 <?php
 
-use App\Dto\ServiceConfig;
+use App\Data\ServiceConfig;
 
 test('host services uses gateway ip', function() {
 	$config = ServiceConfig::hostServices('192.168.64.1');

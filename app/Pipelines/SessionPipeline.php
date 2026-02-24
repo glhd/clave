@@ -2,7 +2,7 @@
 
 namespace App\Pipelines;
 
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 use App\Pipelines\Steps\ProgressAware;
 use App\Pipelines\Steps\Step;
 use Closure;

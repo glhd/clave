@@ -2,7 +2,7 @@
 
 namespace App\Pipelines;
 
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 
 interface HandlesSession
 {

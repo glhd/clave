@@ -2,10 +2,11 @@
 
 namespace App\Support;
 
-use App\Dto\OnExit;
-use App\Dto\SessionContext;
+use App\Data\OnExit;
+use App\Data\SessionContext;
 use App\Models\Session;
-use Illuminate\Console\Command;
+use Laravel\Prompts\Progress;
+use function Laravel\Prompts\progress;
 use function Laravel\Prompts\select;
 
 class SessionTeardown
@@ -27,55 +28,70 @@ class SessionTeardown
 		
 		$this->completed = true;
 		
-		$this->unproxy($context);
-		$this->killTunnel($context);
-		$this->stopVm($context);
-		$this->deleteVm($context);
-		$this->handleWorktree($context);
-		$this->deleteSession($context);
+		$steps = [
+			$this->unproxy(...),
+			$this->killTunnel(...),
+			$this->stopVm(...),
+			$this->deleteVm(...),
+			$this->handleWorktree(...),
+			$this->deleteSession(...),
+		];
+		
+		$progress = progress('Cleaning up...', count($steps));
+		
+		foreach ($steps as $step) {
+			rescue(fn() => $step($context, $progress));
+			$progress->advance();
+		}
+		
+		$progress->finish();
 	}
 	
-	protected function unproxy(SessionContext $context): void
+	protected function unproxy(SessionContext $context, Progress $progress): void
 	{
-		if ($context->proxy_name === null) {
+		if (! $context->proxy_name) {
 			return;
 		}
 		
-		rescue(fn() => $this->herd->unproxy($context->proxy_name));
-		$context->info("  Removed Herd proxy: {$context->proxy_name}");
+		$this->herd->unproxy($context->proxy_name);
+		
+		$progress->hint("Removed Herd proxy: {$context->proxy_name}");
 	}
 	
-	protected function killTunnel(SessionContext $context): void
+	protected function killTunnel(SessionContext $context, Progress $progress): void
 	{
 		if ($context->tunnel_process === null) {
 			return;
 		}
 		
-		rescue(fn() => $context->tunnel_process->stop());
-		$context->info('  Stopped SSH tunnel');
+		$context->tunnel_process->stop();
+		
+		$progress->hint('Stopped SSH tunnel');
 	}
 	
-	protected function stopVm(SessionContext $context): void
+	protected function stopVm(SessionContext $context, Progress $progress): void
 	{
 		if ($context->vm_name === null) {
 			return;
 		}
 		
-		rescue(fn() => $this->tart->stop($context->vm_name));
-		$context->info("  Stopped VM: {$context->vm_name}");
+		$this->tart->stop($context->vm_name);
+		
+		$progress->hint("Stopped VM: {$context->vm_name}");
 	}
 	
-	protected function deleteVm(SessionContext $context): void
+	protected function deleteVm(SessionContext $context, Progress $progress): void
 	{
 		if ($context->vm_name === null) {
 			return;
 		}
 		
-		rescue(fn() => $this->tart->delete($context->vm_name));
-		$context->info("  Deleted VM: {$context->vm_name}");
+		$this->tart->delete($context->vm_name);
+		
+		$progress->hint("Deleted VM: {$context->vm_name}");
 	}
 	
-	protected function handleWorktree(SessionContext $context): void
+	protected function handleWorktree(SessionContext $context, Progress $progress): void
 	{
 		if ($context->worktree_path === null) {
 			return;
@@ -89,33 +105,31 @@ class SessionTeardown
 			default: OnExit::Keep->value,
 		));
 		
-		rescue(function() use ($context, $action) {
-			match ($action) {
-				OnExit::Merge => $this->git->mergeAndCleanWorktree(
-					$context->project_dir,
-					$context->worktree_path,
-					$context->worktree_branch,
-					$context->base_branch,
-				),
-				OnExit::Discard => $this->git->removeWorktree(
-					$context->project_dir,
-					$context->worktree_path,
-				),
-				default => null,
-			};
-			
-			$label = match ($action) {
-				OnExit::Merge => 'Merged and cleaned up',
-				OnExit::Discard => 'Discarded',
-				default => 'Kept',
-			};
-			
-			$context->info("  {$label} worktree: {$context->worktree_branch}");
-		});
+		match ($action) {
+			OnExit::Merge => $this->git->mergeAndCleanWorktree(
+				$context->project_dir,
+				$context->worktree_path,
+				$context->worktree_branch,
+				$context->base_branch,
+			),
+			OnExit::Discard => $this->git->removeWorktree(
+				$context->project_dir,
+				$context->worktree_path,
+			),
+			default => null,
+		};
+		
+		$label = match ($action) {
+			OnExit::Merge => 'Merged and cleaned up',
+			OnExit::Discard => 'Discarded',
+			default => 'Kept',
+		};
+		
+		$progress->hint("{$label} worktree: {$context->worktree_branch}");
 	}
 	
-	protected function deleteSession(SessionContext $context): void
+	protected function deleteSession(SessionContext $context, Progress $progress): void
 	{
-		rescue(fn() => Session::where('session_id', $context->session_id)->delete());
+		Session::where('session_id', $context->session_id)->delete();
 	}
 }

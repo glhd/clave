@@ -2,7 +2,7 @@
 
 namespace App\Pipelines\Steps;
 
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
 use Closure;

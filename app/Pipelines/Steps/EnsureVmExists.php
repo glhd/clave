@@ -3,7 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Commands\ProvisionCommand;
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 use App\Support\TartManager;
 use Closure;
 use Illuminate\Filesystem\Filesystem;

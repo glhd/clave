@@ -2,7 +2,7 @@
 
 namespace App\Pipelines\Steps;
 
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 use Closure;
 
 interface Step

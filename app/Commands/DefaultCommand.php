@@ -2,8 +2,8 @@
 
 namespace App\Commands;
 
-use App\Dto\OnExit;
-use App\Dto\SessionContext;
+use App\Data\OnExit;
+use App\Data\SessionContext;
 use App\Exceptions\AbortedPipelineException;
 use App\Pipelines\ClaudeCodePipeline;
 use App\Pipelines\PreflightPipeline;
@@ -35,30 +35,27 @@ class DefaultCommand extends Command
 			
 			$context = $this->newContext();
 			
+			$this->line("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info>");
+			
 			$preflight->run($context);
 			
-			$this->line("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info> on branch <info>{$context->base_branch}</info>");
-			
 			$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
-				$this->newLine();
 				$teardown->run($context);
 			});
 			
 			try {
 				$claude->run($context);
 			} finally {
-				$this->newLine();
-				$this->info('Cleaning up...');
 				$teardown->run($context);
-				$this->newLine();
 			}
 			
 			return self::SUCCESS;
 		} catch (AbortedPipelineException $exception) {
 			error($exception->getMessage());
-			$this->newLine();
 			
 			return self::FAILURE;
+		} finally {
+			$this->newLine();
 		}
 	}
 	

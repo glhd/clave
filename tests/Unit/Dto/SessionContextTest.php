@@ -1,6 +1,6 @@
 <?php
 
-use App\Dto\SessionContext;
+use App\Data\SessionContext;
 use Illuminate\Console\OutputStyle;
 use LaravelZero\Framework\Commands\Command;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -50,40 +50,4 @@ test('mutable properties can be set', function() {
 
 	expect($context->vm_name)->toBe('clave-abc123')
 		->and($context->vm_ip)->toBe('192.168.64.5');
-});
-
-test('status writes to output', function() {
-	$command = new class() extends Command {
-		protected $name = 'test';
-
-		public function handle()
-		{
-		}
-	};
-	$buffered = new BufferedOutput();
-	$output = new OutputStyle(new ArrayInput([]), $buffered);
-	$command->setOutput($output);
-
-	$context = new SessionContext(
-		session_id: 'abc123',
-		project_name: 'my-app',
-		project_dir: '/path/to/app',
-		command: $command,
-	);
-
-	$context->info('Hello world');
-
-	expect($buffered->fetch())->toContain('Hello world');
-});
-
-test('status is safe without output', function() {
-	$context = new SessionContext(
-		session_id: 'abc123',
-		project_name: 'my-app',
-		project_dir: '/path/to/app',
-	);
-
-	$context->info('No output set');
-
-	expect(true)->toBeTrue();
 });

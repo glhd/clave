@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Dto;
+namespace App\Data;
 
 use App\Exceptions\AbortedPipelineException;
 use App\Models\Session;
@@ -36,21 +36,6 @@ class SessionContext
 		public ?OnExit $on_exit = null,
 		public ?Command $command = null,
 	) {
-	}
-	
-	public function info(string $message): void
-	{
-		$this->command?->info($message);
-	}
-	
-	public function warn($message): void
-	{
-		$this->command?->warn($message);
-	}
-	
-	public function error(string $message): void
-	{
-		$this->command?->error($message);
 	}
 	
 	public function abort(string $message): never
