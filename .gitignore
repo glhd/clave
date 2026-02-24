@@ -7,3 +7,5 @@
 /database/database.sqlite
 .env
 /builds
+node_modules
+.wrangler
