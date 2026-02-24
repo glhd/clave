@@ -33,14 +33,12 @@ class DefaultCommand extends Command
 			
 			$context = $this->newContext();
 			
-			app(PreflightPipeline::class)->handle($context);
+			app(PreflightPipeline::class)->run($context);
 			
-			$this->info("Starting Clave session: {$context->session_id}");
-			$this->info(" - Project: {$context->project_name} ({$context->base_branch})");
+			$this->line("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info> on branch <info>{$context->base_branch}</info>");
 			
 			$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
 				$this->newLine();
-				$this->info('Shutting down...');
 				$teardown($context, $this);
 			});
 			

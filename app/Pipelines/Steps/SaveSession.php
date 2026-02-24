@@ -6,7 +6,7 @@ use App\Dto\SessionContext;
 use App\Models\Session;
 use Closure;
 
-class SaveSession
+class SaveSession implements Step
 {
 	public function handle(SessionContext $context, Closure $next): mixed
 	{

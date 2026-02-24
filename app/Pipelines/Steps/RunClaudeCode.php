@@ -7,7 +7,7 @@ use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
 
-class RunClaudeCode
+class RunClaudeCode implements Step
 {
 	public function __construct(
 		protected SshExecutor $ssh,

@@ -8,7 +8,7 @@ use App\Support\TartManager;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
 
-class EnsureVmExists
+class EnsureVmExists implements Step
 {
 	public function __construct(
 		protected Filesystem $fs,

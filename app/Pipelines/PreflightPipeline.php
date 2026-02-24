@@ -2,32 +2,27 @@
 
 namespace App\Pipelines;
 
-use App\Dto\SessionContext;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
 use App\Pipelines\Steps\SaveSession;
 use App\Pipelines\Steps\ValidateProject;
-use Illuminate\Pipeline\Pipeline;
 
-class PreflightPipeline implements HandlesSession
+class PreflightPipeline extends SessionPipeline
 {
-	public function __construct(
-		protected Pipeline $pipeline,
-	) {
+	protected function label(): string
+	{
+		return 'Setting up project...';
 	}
 	
-	public function handle(SessionContext $context): SessionContext
+	protected function steps(): array
 	{
-		return $this->pipeline
-			->send($context)
-			->through([
-				ValidateProject::class,
-				GetGitBranch::class,
-				EnsureVmExists::class,
-				CheckClaudeAuthentication::class,
-				SaveSession::class,
-			])
-			->thenReturn();
+		return [
+			ValidateProject::class,
+			GetGitBranch::class,
+			EnsureVmExists::class,
+			CheckClaudeAuthentication::class,
+			SaveSession::class,
+		];
 	}
 }

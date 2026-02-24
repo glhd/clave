@@ -6,7 +6,7 @@ use App\Dto\SessionContext;
 use App\Support\GitManager;
 use Closure;
 
-class CreateWorktree
+class CreateWorktree implements Step
 {
 	public function __construct(protected GitManager $git)
 	{

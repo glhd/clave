@@ -6,7 +6,7 @@ use App\Dto\SessionContext;
 use App\Support\AuthManager;
 use Closure;
 
-class CheckClaudeAuthentication
+class CheckClaudeAuthentication implements Step
 {
 	public function __construct(
 		protected AuthManager $auth,

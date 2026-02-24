@@ -8,7 +8,7 @@ use App\Support\TartManager;
 use Closure;
 use RuntimeException;
 
-class BootVm
+class BootVm implements Step
 {
 	protected int $timeout = 90;
 
