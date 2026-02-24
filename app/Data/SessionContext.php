@@ -15,9 +15,9 @@ class SessionContext
 	
 	public ?string $vm_ip = null;
 	
-	public ?string $worktree_path = null;
+	public ?string $clone_path = null;
 	
-	public ?string $worktree_branch = null;
+	public ?string $clone_branch = null;
 	
 	public ?string $proxy_name = null;
 	

@@ -33,7 +33,7 @@ class SessionTeardown
 			$this->killTunnel(...),
 			$this->stopVm(...),
 			$this->deleteVm(...),
-			$this->handleWorktree(...),
+			$this->handleClone(...),
 			$this->deleteSession(...),
 		];
 		
@@ -91,41 +91,40 @@ class SessionTeardown
 		$progress->hint("Deleted VM: {$context->vm_name}");
 	}
 	
-	protected function handleWorktree(SessionContext $context, Progress $progress): void
+	protected function handleClone(SessionContext $context, Progress $progress): void
 	{
-		if ($context->worktree_path === null) {
+		if ($context->clone_path === null) {
 			return;
 		}
 		
 		$action = $context->on_exit;
 		
 		$action ??= OnExit::coerce(select(
-			label: 'What would you like to do with the worktree?',
+			label: 'What would you like to do with the session changes?',
 			options: OnExit::toSelectArray(),
 			default: OnExit::Keep->value,
 		));
-		
+
 		match ($action) {
-			OnExit::Merge => $this->git->mergeAndCleanWorktree(
+			OnExit::Merge => $this->git->mergeAndCleanClone(
 				$context->project_dir,
-				$context->worktree_path,
-				$context->worktree_branch,
+				$context->clone_path,
+				$context->clone_branch,
 				$context->base_branch,
 			),
-			OnExit::Discard => $this->git->removeWorktree(
-				$context->project_dir,
-				$context->worktree_path,
+			OnExit::Discard => $this->git->removeClone(
+				$context->clone_path,
 			),
 			default => null,
 		};
-		
+
 		$label = match ($action) {
 			OnExit::Merge => 'Merged and cleaned up',
 			OnExit::Discard => 'Discarded',
 			default => 'Kept',
 		};
-		
-		$progress->hint("{$label} worktree: {$context->worktree_branch}");
+
+		$progress->hint("{$label}: {$context->clone_branch}");
 	}
 	
 	protected function deleteSession(SessionContext $context, Progress $progress): void

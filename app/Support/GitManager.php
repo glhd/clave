@@ -23,52 +23,65 @@ class GitManager
 		);
 	}
 
-	public function createWorktree(string $repo_path, string $worktree_path, string $branch): mixed
+	public function cloneLocal(string $repo_path, string $clone_path, string $base_branch, string $clone_branch): mixed
 	{
-		$escaped_branch = escapeshellarg($branch);
-		$escaped_path = escapeshellarg($worktree_path);
+		$escaped_path = escapeshellarg($clone_path);
+		$escaped_base = escapeshellarg($base_branch);
+		$escaped_clone = escapeshellarg($clone_branch);
 
-		return Process::path($repo_path)
-			->run("git worktree add -b {$escaped_branch} {$escaped_path}")
+		Process::path($repo_path)
+			->run("git clone --local --branch {$escaped_base} . {$escaped_path}")
+			->throw();
+
+		return Process::path($clone_path)
+			->run("git checkout -b {$escaped_clone}")
 			->throw();
 	}
 
-	public function removeWorktree(string $repo_path, string $worktree_path): mixed
+	public function removeClone(string $clone_path): void
 	{
-		$escaped_path = escapeshellarg($worktree_path);
-
-		return Process::path($repo_path)
-			->run("git worktree remove --force {$escaped_path}");
+		if (is_dir($clone_path)) {
+			Process::run('rm -rf '.escapeshellarg($clone_path));
+		}
 	}
 
-	public function mergeAndCleanWorktree(string $repo_path, string $worktree_path, string $branch, string $base_branch): void
+	public function commitAllChanges(string $clone_path, string $message): bool
 	{
-		$escaped_branch = escapeshellarg($branch);
+		Process::path($clone_path)->run('git add -A');
+
+		$status = Process::path($clone_path)->run('git status --porcelain');
+
+		if (trim($status->output()) === '') {
+			return false;
+		}
+
+		Process::path($clone_path)
+			->run('git commit -m '.escapeshellarg($message))
+			->throw();
+
+		return true;
+	}
+
+	public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): void
+	{
 		$escaped_base = escapeshellarg($base_branch);
+		$escaped_clone_path = escapeshellarg($clone_path);
+		$escaped_clone_branch = escapeshellarg($clone_branch);
+
+		$this->commitAllChanges($clone_path, 'WIP: auto-commit from clave session');
+
+		Process::path($repo_path)
+			->run("git fetch {$escaped_clone_path} {$escaped_clone_branch}")
+			->throw();
 
 		Process::path($repo_path)
 			->run("git checkout {$escaped_base}")
 			->throw();
 
 		Process::path($repo_path)
-			->run("git merge {$escaped_branch}")
+			->run('git merge FETCH_HEAD')
 			->throw();
 
-		$this->removeWorktree($repo_path, $worktree_path);
-
-		Process::path($repo_path)
-			->run("git branch -d {$escaped_branch}");
-	}
-
-	public function ensureIgnored(string $repo_path, string $pattern): void
-	{
-		$gitignore_path = $repo_path.'/.gitignore';
-		$contents = file_exists($gitignore_path) ? file_get_contents($gitignore_path) : '';
-		
-		if (str_contains($contents, $pattern)) {
-			return;
-		}
-
-		file_put_contents($gitignore_path, rtrim($contents)."\n{$pattern}\n");
+		$this->removeClone($clone_path);
 	}
 }

@@ -15,7 +15,7 @@ A Laravel Zero CLI that spins up ephemeral Ubuntu VMs via Tart for isolated Clau
 - [x] `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4, nginx, Node 22, Claude Code)
 - [x] `AuthManager` + `AuthCommand` — API key + OAuth token support with local storage
 - [x] Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
-- [x] Session pipeline: `CreateWorktree → CloneVm → BootVm → RunClaudeCode`
+- [x] Session pipeline: `CloneRepo → CloneVm → BootVm → RunClaudeCode`
 - [x] `SessionTeardown` — VM stop/delete, worktree prompt, Herd unproxy, tunnel kill, session record cleanup
 - [x] Signal handling via `$this->trap()` (SIGINT/SIGTERM)
 - [x] Sessions SQLite table + `Session` model
@@ -208,8 +208,8 @@ class SessionContext
         public ?string $base_branch = null,
         public ?string $vm_name = null,
         public ?string $vm_ip = null,
-        public ?string $worktree_path = null,
-        public ?string $worktree_branch = null,
+        public ?string $clone_path = null,
+        public ?string $clone_branch = null,
         public ?string $proxy_name = null,
         public ?int $tunnel_port = null,
         public ?InvokedProcess $tunnel_process = null,
@@ -296,7 +296,7 @@ ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthenticatio
 Label: "Starting session..."
 
 ```
-CreateWorktree → CloneVm → BootVm → RunClaudeCode
+CloneRepo → CloneVm → BootVm → RunClaudeCode
 ```
 
 Future stages to be inserted between `BootVm` and `RunClaudeCode`:
@@ -304,23 +304,23 @@ Future stages to be inserted between `BootVm` and `RunClaudeCode`:
 DiscoverGateway → CreateSshTunnel → ConfigureHerdProxy → BootstrapLaravel
 ```
 
-#### CreateWorktree
+#### CloneRepo
 
 ```php
-class CreateWorktree implements Step, ProgressAware
+class CloneRepo implements Step, ProgressAware
 {
     use AcceptsProgress;
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
         $branch = "clave/s-{$context->session_id}";
-        $worktree_path = "{$context->project_dir}/.clave/wt/s-{$context->session_id}";
+        $clone_path = "{$context->project_dir}/.clave/wt/s-{$context->session_id}";
 
         $this->git->ensureIgnored($context->project_dir, '.clave/');
-        $this->git->createWorktree($context->project_dir, $worktree_path, $branch);
+        $this->git->cloneLocal($context->project_dir, $clone_path, $branch);
 
-        $context->worktree_path = $worktree_path;
-        $context->worktree_branch = $branch;
+        $context->clone_path = $clone_path;
+        $context->clone_branch = $branch;
 
         return $next($context);
     }
@@ -364,7 +364,7 @@ class BootVm implements Step, ProgressAware
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
-        $mount_path = $context->worktree_path ?? $context->project_dir;
+        $mount_path = $context->clone_path ?? $context->project_dir;
 
         $this->tart->runBackground($context->vm_name, [
             'project' => $mount_path,
@@ -495,11 +495,11 @@ class SessionTeardown
         $this->killTunnel($context);     // Stop SSH tunnel if running
         $this->stopVm($context);         // tart stop
         $this->deleteVm($context);       // tart delete
-        $this->handleWorktree($context); // Prompt: keep/merge/discard
+        $this->handleClone($context); // Prompt: keep/merge/discard
         $this->deleteSession($context);  // Remove Session record
     }
 
-    protected function handleWorktree(SessionContext $context): void
+    protected function handleClone(SessionContext $context): void
     {
         $action = $context->on_exit;
 
@@ -511,8 +511,8 @@ class SessionTeardown
         ));
 
         match ($action) {
-            OnExit::Merge => $this->git->mergeAndCleanWorktree(...),
-            OnExit::Discard => $this->git->removeWorktree(...),
+            OnExit::Merge => $this->git->mergeAndCleanClone(...),
+            OnExit::Discard => $this->git->removeClone(...),
             default => null, // keep
         };
     }
@@ -697,9 +697,9 @@ class GitManager
 {
     public function isRepo(string $path): bool;
     public function currentBranch(string $path): string;
-    public function createWorktree(string $repo_path, string $worktree_path, string $branch): void;
-    public function removeWorktree(string $repo_path, string $worktree_path): void;
-    public function mergeAndCleanWorktree(string $repo_path, string $worktree_path, string $branch, string $target): void;
+    public function cloneLocal(string $repo_path, string $clone_path, string $branch): void;
+    public function removeClone(string $repo_path, string $clone_path): void;
+    public function mergeAndCleanClone(string $repo_path, string $clone_path, string $branch, string $target): void;
     public function ensureIgnored(string $repo_path, string $pattern): void;
 }
 ```
@@ -820,7 +820,7 @@ clave/
 │   │   │   ├── EnsureVmExists.php
 │   │   │   ├── CheckClaudeAuthentication.php
 │   │   │   ├── SaveSession.php
-│   │   │   ├── CreateWorktree.php
+│   │   │   ├── CloneRepo.php
 │   │   │   ├── CloneVm.php
 │   │   │   ├── BootVm.php
 │   │   │   └── RunClaudeCode.php
@@ -873,7 +873,7 @@ Proves the core lifecycle: boot a VM, get a Claude Code session, tear it down.
 6. `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4/nginx/Node 22/Claude Code)
 7. `SessionPipeline` base class with progress tracking
 8. Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
-9. Session pipeline: `CreateWorktree → CloneVm → BootVm → RunClaudeCode`
+9. Session pipeline: `CloneRepo → CloneVm → BootVm → RunClaudeCode`
 10. `SessionTeardown` — cleanup VM, worktree prompt, session record
 11. Signal handling via `$this->trap()` (SIGINT/SIGTERM)
 12. Sessions SQLite table + model

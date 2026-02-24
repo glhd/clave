@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Clave is a Laravel Zero CLI that spins up ephemeral Ubuntu VMs via [Tart](https://tart.run/) for isolated Claude Code sessions against Laravel projects. Run `clave` from within a Laravel project's git repo — it handles worktree creation, VM lifecycle, networking, and teardown automatically. Multiple simultaneous sessions work naturally with unique worktrees, VMs, and ports.
+Clave is a Laravel Zero CLI that spins up ephemeral Ubuntu VMs via [Tart](https://tart.run/) for isolated Claude Code sessions against Laravel projects. Run `clave` from within a Laravel project's git repo — it handles repo cloning, VM lifecycle, networking, and teardown automatically. Multiple simultaneous sessions work naturally with unique clones, VMs, and ports.
 
 ## Commands
 
@@ -36,7 +36,7 @@ php clave app:build
 
 A `SessionContext` DTO flows through pipeline stages in `DefaultCommand`:
 
-`CreateWorktree → CloneVm → BootVm → RunClaudeCode`
+`CloneRepo → CloneVm → BootVm → RunClaudeCode`
 
 Each stage populates fields on `SessionContext` and calls `$next()`. Teardown runs via `SessionTeardown` in both a `finally` block and SIGINT/SIGTERM signal handler.
 
@@ -45,7 +45,7 @@ Future stages (not yet implemented): `DiscoverGateway → CreateSshTunnel → Co
 ### Key Services (all registered as singletons)
 
 - **TartManager** — wraps the `tart` CLI for VM clone/run/stop/delete/ip
-- **GitManager** — worktree create/remove/merge, .gitignore management
+- **GitManager** — local clone/remove/merge for session isolation
 - **SshExecutor** — SSH command execution, tunnels, interactive TTY sessions
 - **HerdManager** — Herd Pro proxy/unproxy (future use)
 - **SessionTeardown** — reverses each pipeline stage on exit
@@ -53,9 +53,9 @@ Future stages (not yet implemented): `DiscoverGateway → CreateSshTunnel → Co
 
 ### DTOs
 
-- **SessionContext** — mutable pipeline state (session_id, vm_name, vm_ip, worktree_path, etc.)
+- **SessionContext** — mutable pipeline state (session_id, vm_name, vm_ip, clone_path, etc.)
 - **ServiceConfig** — readonly database/Redis config
-- **OnExit** — enum (Keep, Merge, Discard) for worktree handling on session end
+- **OnExit** — enum (Keep, Merge, Discard) for clone handling on session end
 
 ## Conventions
 

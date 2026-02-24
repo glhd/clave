@@ -16,7 +16,7 @@ enum OnExit: string
 	public function label(): string
 	{
 		return match ($this) {
-			OnExit::Keep => 'Keep worktree',
+			OnExit::Keep => 'Keep clone',
 			OnExit::Merge => 'Merge and clean up',
 			OnExit::Discard => 'Discard changes',
 			default => Str::headline($this->name),

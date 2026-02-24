@@ -22,7 +22,7 @@ class BootVm implements Step, ProgressAware
 
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$mount_path = $context->worktree_path ?? $context->project_dir;
+		$mount_path = $context->clone_path ?? $context->project_dir;
 
 		$this->hint("Booting VM '{$context->vm_name}'...");
 		$this->tart->runBackground($context->vm_name, [$mount_path]);

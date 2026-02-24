@@ -29,8 +29,8 @@ test('mutable properties default to null', function() {
 
 	expect($context->vm_name)->toBeNull()
 		->and($context->vm_ip)->toBeNull()
-		->and($context->worktree_path)->toBeNull()
-		->and($context->worktree_branch)->toBeNull()
+		->and($context->clone_path)->toBeNull()
+		->and($context->clone_branch)->toBeNull()
 		->and($context->proxy_name)->toBeNull()
 		->and($context->tunnel_port)->toBeNull()
 		->and($context->tunnel_process)->toBeNull()
