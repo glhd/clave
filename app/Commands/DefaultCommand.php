@@ -43,7 +43,7 @@ class DefaultCommand extends Command
 			});
 			
 			try {
-				app(ClaudeCodePipeline::class)->handle($context);
+				app(ClaudeCodePipeline::class)->run($context);
 			} finally {
 				$this->newLine();
 				$this->info('Cleaning up...');

@@ -8,8 +8,10 @@ use App\Support\TartManager;
 use Closure;
 use RuntimeException;
 
-class BootVm implements Step
+class BootVm implements Step, ProgressAware
 {
+	use AcceptsProgress;
+
 	protected int $timeout = 90;
 
 	public function __construct(
@@ -22,25 +24,21 @@ class BootVm implements Step
 	{
 		$mount_path = $context->worktree_path ?? $context->project_dir;
 
-		$context->info("Booting VM: {$context->vm_name}");
-		$context->info("  Sharing: {$mount_path}");
+		$this->hint("Booting VM '{$context->vm_name}'...");
 		$this->tart->runBackground($context->vm_name, [$mount_path]);
 
 		$this->ssh->usePassword(config('clave.ssh.password'));
 
-		$context->info('Waiting for VM IP address...');
+		$this->hint('Waiting for VM IP address...');
 		$ip = $this->tart->ip($context->vm_name, $this->timeout);
 		$context->vm_ip = $ip;
 		$this->ssh->setHost($ip);
-		$context->info("  VM IP: {$ip}");
 
-		$context->info('Waiting for SSH...');
+		$this->hint('Waiting for SSH...');
 		$this->waitForSsh($context);
-		$context->info('  SSH ready');
 
-		$context->info('Mounting shared directories...');
+		$this->hint('Mounting shared directories...');
 		$this->mountSharedDirectories($context);
-		$context->info('  Mounted /srv/project');
 
 		return $next($context);
 	}
@@ -60,7 +58,6 @@ class BootVm implements Step
 
 				if ($output && $output !== $last_error) {
 					$last_error = $output;
-					$context->info("  Mount: {$output}");
 				}
 
 				$this->ssh->run('mountpoint -q /srv/project');
@@ -68,7 +65,7 @@ class BootVm implements Step
 				return;
 			} catch (\Throwable) {
 				$elapsed = time() - $start;
-				$context->info("  Waiting for VirtioFS mount ({$elapsed}s)...");
+				$this->hint("Waiting for VirtioFS mount ({$elapsed}s)...");
 				sleep(2);
 			}
 		}
@@ -113,7 +110,7 @@ class BootVm implements Step
 			$error = $this->ssh->lastError();
 			
 			if ($attempts > 5) {
-				$context->info(" - Attempt {$attempts} failed ({$elapsed}s elapsed)".($error ? ": {$error}" : ''));
+				$this->hint("Waiting for SSH ({$elapsed}s)...");
 			}
 
 			sleep(2);

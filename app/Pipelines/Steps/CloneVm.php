@@ -6,8 +6,10 @@ use App\Dto\SessionContext;
 use App\Support\TartManager;
 use Closure;
 
-class CloneVm implements Step
+class CloneVm implements Step, ProgressAware
 {
+	use AcceptsProgress;
+
 	public function __construct(protected TartManager $tart)
 	{
 	}
@@ -17,7 +19,7 @@ class CloneVm implements Step
 		$vm_name = "clave-{$context->session_id}";
 		$base_vm = config('clave.base_vm');
 
-		$context->info("Cloning VM: {$base_vm} → {$vm_name}");
+		$this->hint("Cloning VM '{$base_vm}'...");
 		$this->tart->clone($base_vm, $vm_name);
 		$this->tart->randomizeMac($vm_name);
 

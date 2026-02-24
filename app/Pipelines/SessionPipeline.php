@@ -68,6 +68,7 @@ abstract class SessionPipeline extends Pipeline
 	
 	protected function clearProgress(): void
 	{
+		$this->progress?->hint('Done');
 		$this->progress?->finish();
 		$this->progress = null;
 	}

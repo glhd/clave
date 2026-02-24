@@ -6,8 +6,10 @@ use App\Dto\SessionContext;
 use App\Support\GitManager;
 use Closure;
 
-class CreateWorktree implements Step
+class CreateWorktree implements Step, ProgressAware
 {
+	use AcceptsProgress;
+
 	public function __construct(protected GitManager $git)
 	{
 	}
@@ -19,7 +21,7 @@ class CreateWorktree implements Step
 
 		$this->git->ensureIgnored($context->project_dir, '.clave/');
 
-		$context->info("Creating worktree: {$branch}");
+		$this->hint("Creating worktree '{$branch}'...");
 		$this->git->createWorktree($context->project_dir, $path, $branch);
 
 		$context->worktree_path = $path;

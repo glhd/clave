@@ -7,8 +7,10 @@ use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
 
-class RunClaudeCode implements Step
+class RunClaudeCode implements Step, ProgressAware
 {
+	use AcceptsProgress;
+
 	public function __construct(
 		protected SshExecutor $ssh,
 		protected AuthManager $auth,
@@ -19,12 +21,12 @@ class RunClaudeCode implements Step
 	{
 		$project_dir = '/srv/project';
 
-		$context->info('Starting Claude Code session...');
+		$this->hint('Starting Claude Code...');
 
 		$resolved = $this->auth->resolve();
 
 		if ($resolved !== null && $resolved['type'] === 'oauth') {
-			$context->info(' - Writing credentials file...');
+			$this->hint('Writing credentials file...');
 			$this->writeCredentialsFile($resolved['value']);
 		}
 
@@ -38,6 +40,8 @@ class RunClaudeCode implements Step
 		}
 
 		$inner = "cd {$project_dir} && {$env}claude --dangerously-skip-permissions";
+		
+		$this->progress->finish();
 
 		$this->ssh->interactive(
 			'bash -l -c '.escapeshellarg($inner)
@@ -65,7 +69,7 @@ class RunClaudeCode implements Step
 		], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
 		$this->ssh->run(
-			"mkdir -p ~/.claude"
+			'mkdir -p ~/.claude'
 			." && echo {$credentials} | base64 -d > ~/.claude/.credentials.json"
 			." && echo {$settings} | base64 -d > ~/.claude.json"
 			." && echo {$settings} | base64 -d > ~/.claude/settings.json"
