@@ -30,16 +30,15 @@ _main() {
 
 _prep() {
   if [ -d "$BIN_DIR" ] && [ ! -w "$BIN_DIR" ]; then
-    echo "Installing into $BIN_DIR will require sudo..."
     SUDO="sudo"
   fi
 }
 
 _install() {
   if [ -f "$BIN_DIR/$BIN_NAME" ]; then
-    echo "upgrading: $BIN_DIR/$BIN_NAME" >&2
+    echo "Upgrading: $BIN_DIR/$BIN_NAME" >&2
   else
-    echo "installing: $BIN_DIR/$BIN_NAME" >&2
+    echo "Installing: $BIN_DIR/$BIN_NAME" >&2
   fi
 
   tmpfile="$(mktemp)"
