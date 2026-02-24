@@ -29,8 +29,15 @@ _main() {
 }
 
 _prep() {
+  if ! command -v php >/dev/null 2>&1; then
+    echo "Error: PHP is required but not installed." >&2
+    echo "Install PHP 8.3+ and try again." >&2
+    exit 1
+  fi
+
   if [ -d "$BIN_DIR" ] && [ ! -w "$BIN_DIR" ]; then
     SUDO="sudo"
+    echo "Note: $BIN_DIR is not writable. You may be prompted for your password." >&2
   fi
 }
 
