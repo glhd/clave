@@ -59,6 +59,7 @@ Future stages (not yet implemented): `DiscoverGateway → CreateSshTunnel → Co
 
 ## Conventions
 
+- **User Input**: Use Laravel prompts rather than Command input helpers (eg. `use function Laravel\Prompts\select`)
 - **Testing**: Pest (not PHPUnit). Tests using `Process::fake()` must be Feature tests (need app context).
 - **Formatting**: `php-cs-fixer` (NOT Pint). Run `./vendor/bin/php-cs-fixer fix <file>` — one file per invocation.
 - **Linting**: LaraLint (`glhd/laralint`). Run `php clave laralint:lint <files>` on new/changed PHP code.

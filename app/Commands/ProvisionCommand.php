@@ -51,13 +51,13 @@ class ProvisionCommand extends Command
 
 		try {
 			$this->info('Booting VM for provisioning...');
-			$tart->runBackground($tmp_name, ['provision' => $script_dir]);
+			$tart->runBackground($tmp_name, [$script_dir]);
 
 			$this->info('Waiting for VM to be ready...');
 			$tart->waitForReady($tmp_name, $ssh, 120);
 
 			$this->info('Mounting provisioning script...');
-			$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs provision /mnt/provision');
+			$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs com.apple.virtio-fs.automount /mnt/provision');
 
 			$this->info('Running provisioning script...');
 			$ssh->run('sudo bash /mnt/provision/provision.sh', 600);

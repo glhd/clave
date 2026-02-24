@@ -69,8 +69,8 @@ class SshExecutor
 	public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed
 	{
 		$cmd = $this->buildSshPrefix();
-		$cmd .= " -N -L {$local_port}:{$remote_host}:{$remote_port}";
-		$cmd .= " {$this->user}@{$this->host}";
+		$cmd .= ' -N -L '.escapeshellarg("{$local_port}:{$remote_host}:{$remote_port}");
+		$cmd .= ' '.escapeshellarg("{$this->user}@{$this->host}");
 
 		return Process::start($cmd);
 	}
@@ -105,7 +105,7 @@ class SshExecutor
 	protected function buildCommand(string $remote_command): string
 	{
 		$cmd = $this->buildSshPrefix();
-		$cmd .= " {$this->user}@{$this->host}";
+		$cmd .= ' '.escapeshellarg("{$this->user}@{$this->host}");
 		$cmd .= ' '.escapeshellarg($remote_command);
 
 		return $cmd;
@@ -124,7 +124,7 @@ class SshExecutor
 		$parts[] = "-p {$this->port}";
 
 		foreach ($this->options as $key => $value) {
-			$parts[] = "-o {$key}={$value}";
+			$parts[] = '-o '.escapeshellarg("{$key}={$value}");
 		}
 
 		return implode(' ', $parts);

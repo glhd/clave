@@ -8,7 +8,7 @@ class HerdManager
 {
 	public function proxy(string $domain, string $target, bool $secure = true): mixed
 	{
-		$cmd = "herd proxy {$domain} {$target}";
+		$cmd = 'herd proxy '.escapeshellarg($domain).' '.escapeshellarg($target);
 
 		if ($secure) {
 			$cmd .= ' --secure';
@@ -19,6 +19,6 @@ class HerdManager
 
 	public function unproxy(string $domain): mixed
 	{
-		return Process::run("herd unproxy {$domain}");
+		return Process::run('herd unproxy '.escapeshellarg($domain));
 	}
 }

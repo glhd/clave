@@ -9,40 +9,41 @@ class TartManager
 {
 	public function clone(string $source, string $name): mixed
 	{
-		return Process::run("tart clone {$source} {$name}")->throw();
+		return $this->tart('clone', $source, $name)->throw();
 	}
 
 	public function runBackground(string $name, array $dirs = [], bool $no_graphics = true): mixed
 	{
-		$cmd = "tart run {$name}";
+		$args = ['run', escapeshellarg($name)];
 
 		if ($no_graphics) {
-			$cmd .= ' --no-graphics';
+			$args[] = '--no-graphics';
 		}
 
-		foreach ($dirs as $label => $path) {
-			$cmd .= " --dir={$label}:{$path}";
+		foreach ($dirs as $path) {
+			$args[] = '--dir '.escapeshellarg($path);
 		}
 
-		return Process::start($cmd);
+		return Process::start('tart '.implode(' ', $args));
 	}
 
 	public function stop(string $name): mixed
 	{
-		return Process::timeout(30)->run("tart stop {$name}");
+		return Process::timeout(30)->run($this->tartCmd('stop', $name));
 	}
 
 	public function delete(string $name): mixed
 	{
-		return Process::run("tart delete {$name}");
+		return Process::run($this->tartCmd('delete', $name));
 	}
 
 	public function ip(string $name, int $timeout = 30): string
 	{
+		$cmd = $this->tartCmd('ip', $name);
 		$start = time();
 
 		while (time() - $start < $timeout) {
-			$result = Process::run("tart ip {$name}");
+			$result = Process::run($cmd);
 			$ip = trim($result->output());
 
 			if ($result->successful() && filter_var($ip, FILTER_VALIDATE_IP)) {
@@ -57,7 +58,7 @@ class TartManager
 
 	public function exists(string $name): bool
 	{
-		return Process::run("tart get {$name}")->successful();
+		return $this->tart('get', $name)->successful();
 	}
 
 	public function list(): array
@@ -69,31 +70,43 @@ class TartManager
 
 	public function randomizeMac(string $name): mixed
 	{
-		return Process::run("tart set {$name} --random-mac")->throw();
+		return Process::run($this->tartCmd('set', $name).' --random-mac')->throw();
 	}
 
 	public function rename(string $old_name, string $new_name): mixed
 	{
-		return Process::run("tart rename {$old_name} {$new_name}")->throw();
+		return $this->tart('rename', $old_name, $new_name)->throw();
 	}
 
 	public function set(string $name, ?int $cpus = null, ?int $memory = null, ?string $display = null): mixed
 	{
-		$cmd = "tart set {$name}";
+		$args = [escapeshellarg($name)];
 
 		if ($cpus !== null) {
-			$cmd .= " --cpu {$cpus}";
+			$args[] = "--cpu {$cpus}";
 		}
 
 		if ($memory !== null) {
-			$cmd .= " --memory {$memory}";
+			$args[] = "--memory {$memory}";
 		}
 
 		if ($display !== null) {
-			$cmd .= " --display {$display}";
+			$args[] = '--display '.escapeshellarg($display);
 		}
 
-		return Process::run($cmd)->throw();
+		return Process::run('tart set '.implode(' ', $args))->throw();
+	}
+
+	protected function tartCmd(string $subcommand, string ...$args): string
+	{
+		$escaped = array_map('escapeshellarg', $args);
+
+		return 'tart '.$subcommand.' '.implode(' ', $escaped);
+	}
+
+	protected function tart(string $subcommand, string ...$args): mixed
+	{
+		return Process::run($this->tartCmd($subcommand, ...$args));
 	}
 
 	public function waitForReady(string $name, SshExecutor $ssh, int $timeout = 90): void

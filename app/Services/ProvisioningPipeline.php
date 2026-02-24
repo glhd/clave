@@ -53,7 +53,7 @@ class ProvisioningPipeline
 			'virtiofsMounts' => [
 				'label' => 'Configuring VirtioFS mounts',
 				'commands' => [
-					'echo "project /srv/project virtiofs rw,nofail 0 0" | sudo tee -a /etc/fstab',
+					'echo "com.apple.virtio-fs.automount /srv/project virtiofs rw,nofail 0 0" | sudo tee -a /etc/fstab',
 				],
 			],
 		];

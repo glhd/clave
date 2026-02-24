@@ -25,31 +25,39 @@ class GitManager
 
 	public function createWorktree(string $repo_path, string $worktree_path, string $branch): mixed
 	{
+		$escaped_branch = escapeshellarg($branch);
+		$escaped_path = escapeshellarg($worktree_path);
+
 		return Process::path($repo_path)
-			->run("git worktree add -b {$branch} {$worktree_path}")
+			->run("git worktree add -b {$escaped_branch} {$escaped_path}")
 			->throw();
 	}
 
 	public function removeWorktree(string $repo_path, string $worktree_path): mixed
 	{
+		$escaped_path = escapeshellarg($worktree_path);
+
 		return Process::path($repo_path)
-			->run("git worktree remove --force {$worktree_path}");
+			->run("git worktree remove --force {$escaped_path}");
 	}
 
 	public function mergeAndCleanWorktree(string $repo_path, string $worktree_path, string $branch, string $base_branch): void
 	{
+		$escaped_branch = escapeshellarg($branch);
+		$escaped_base = escapeshellarg($base_branch);
+
 		Process::path($repo_path)
-			->run("git checkout {$base_branch}")
+			->run("git checkout {$escaped_base}")
 			->throw();
 
 		Process::path($repo_path)
-			->run("git merge {$branch}")
+			->run("git merge {$escaped_branch}")
 			->throw();
 
 		$this->removeWorktree($repo_path, $worktree_path);
 
 		Process::path($repo_path)
-			->run("git branch -d {$branch}");
+			->run("git branch -d {$escaped_branch}");
 	}
 
 	public function ensureIgnored(string $repo_path, string $pattern): void
