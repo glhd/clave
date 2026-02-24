@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    name: Run test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, curl, xml
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Run tests
+        run: vendor/bin/pest
+
+  release:
+    name: Build and draft release
+    needs: tests
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, phar, zlib, dom, curl
+          ini-values: phar.readonly=Off
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Build PHAR
+        run: php clave app:build clave.phar --build-version=${{ github.ref_name }}
+
+      - name: Build standalone binary
+        run: ./vendor/bin/phpacker build --src=./builds/clave.phar --php=8.3 mac-arm
+
+      - name: Prepare release artifacts
+        run: |
+          cp builds/build/mac/mac-arm builds/clave
+          chmod +x builds/clave
+
+      - name: Smoke-test the binary
+        run: ./builds/clave --version
+
+      - name: Generate checksums
+        run: |
+          cd builds
+          shasum -a 256 clave > clave.sha256sum
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Sign binary
+        if: ${{ env.GPG_PASSPHRASE != '' }}
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          gpg --batch --pinentry-mode loopback \
+            --passphrase "$GPG_PASSPHRASE" \
+            --detach-sign --output builds/clave.asc \
+            builds/clave
+
+      - name: Draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            builds/clave
+            builds/clave.sha256sum
+            builds/clave.asc
