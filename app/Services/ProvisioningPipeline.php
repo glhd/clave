@@ -40,7 +40,9 @@ class ProvisioningPipeline
 			'claudeCode' => [
 				'label' => 'Installing Claude Code',
 				'commands' => [
-					'sudo npm install -g @anthropic-ai/claude-code',
+					'sudo -H -u admin bash -c "curl -fsSL https://claude.ai/install.sh | bash"',
+					'echo \'export PATH="$HOME/.local/bin:$PATH"\' >> /home/admin/.bashrc',
+					'sudo -H -u admin bash -l -c "claude --version"',
 				],
 			],
 			'laravelDirectories' => [

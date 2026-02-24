@@ -61,7 +61,7 @@ class SshExecutor
 	public function interactive(string $command): int
 	{
 		$exit_code = 0;
-		passthru($this->buildCommand($command), $exit_code);
+		passthru($this->buildCommand($command, tty: true), $exit_code);
 
 		return $exit_code;
 	}
@@ -102,9 +102,12 @@ class SshExecutor
 		return $this->last_error;
 	}
 
-	protected function buildCommand(string $remote_command): string
+	protected function buildCommand(string $remote_command, bool $tty = false): string
 	{
 		$cmd = $this->buildSshPrefix();
+		if ($tty) {
+			$cmd .= ' -tt';
+		}
 		$cmd .= ' '.escapeshellarg("{$this->user}@{$this->host}");
 		$cmd .= ' '.escapeshellarg($remote_command);
 

@@ -21,8 +21,10 @@ class RunClaudeCode
 
 		$env = $api_key ? 'ANTHROPIC_API_KEY='.escapeshellarg($api_key).' ' : '';
 
+		$inner = "cd {$project_dir} && {$env}claude --dangerously-skip-permissions";
+
 		$this->ssh->interactive(
-			"cd {$project_dir} && {$env}claude --dangerously-skip-permissions"
+			'bash -l -c '.escapeshellarg($inner)
 		);
 
 		return $next($context);
