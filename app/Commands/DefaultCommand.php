@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\Dto\OnExit;
 use App\Dto\SessionContext;
 use App\Models\Session;
 use App\Pipeline\BootVm;
@@ -47,7 +48,7 @@ class DefaultCommand extends Command
 			output: $this->output,
 		);
 
-		$context->on_exit = $this->option('on-exit');
+		$context->on_exit = OnExit::tryFrom($this->option('on-exit') ?? '');
 
 		Session::create([
 			'session_id' => $session_id,
@@ -63,7 +64,7 @@ class DefaultCommand extends Command
 		$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
 			$this->newLine();
 			$this->info('Shutting down...');
-			$teardown->teardown($context, $this);
+			$teardown($context, $this);
 		});
 
 		try {
@@ -78,7 +79,7 @@ class DefaultCommand extends Command
 		} finally {
 			$this->newLine();
 			$this->info('Cleaning up...');
-			$teardown->teardown($context, $this);
+			$teardown($context, $this);
 		}
 
 		return self::SUCCESS;

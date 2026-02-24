@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Dto\OnExit;
 use App\Dto\SessionContext;
 use App\Models\Session;
 use Illuminate\Console\Command;
@@ -15,7 +16,7 @@ class SessionTeardown
 	) {
 	}
 
-	public function teardown(SessionContext $context, ?Command $command = null): void
+	public function __invoke(SessionContext $context, ?Command $command = null): void
 	{
 		$this->unproxy($context);
 		$this->killTunnel($context);
@@ -74,24 +75,24 @@ class SessionTeardown
 		$action = $context->on_exit;
 
 		if ($action === null && $command !== null) {
-			$action = $command->choice(
+			$action = OnExit::from($command->choice(
 				'What would you like to do with the worktree?',
 				['keep' => 'Keep worktree', 'merge' => 'Merge and clean up', 'discard' => 'Discard changes'],
 				'keep'
-			);
+			));
 		}
 
-		$action ??= 'keep';
+		$action ??= OnExit::Keep;
 
 		rescue(function() use ($context, $action) {
 			match ($action) {
-				'merge' => $this->git->mergeAndCleanWorktree(
+				OnExit::Merge => $this->git->mergeAndCleanWorktree(
 					$context->project_dir,
 					$context->worktree_path,
 					$context->worktree_branch,
 					$context->base_branch,
 				),
-				'discard' => $this->git->removeWorktree(
+				OnExit::Discard => $this->git->removeWorktree(
 					$context->project_dir,
 					$context->worktree_path,
 				),
@@ -99,8 +100,8 @@ class SessionTeardown
 			};
 
 			$label = match ($action) {
-				'merge' => 'Merged and cleaned up',
-				'discard' => 'Discarded',
+				OnExit::Merge => 'Merged and cleaned up',
+				OnExit::Discard => 'Discarded',
 				default => 'Kept',
 			};
 

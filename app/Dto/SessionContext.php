@@ -23,7 +23,7 @@ class SessionContext
 
 	public ?ServiceConfig $services = null;
 
-	public ?string $on_exit = null;
+	public ?OnExit $on_exit = null;
 
 	public function __construct(
 		public readonly string $session_id,
