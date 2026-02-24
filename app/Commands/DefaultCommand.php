@@ -39,9 +39,7 @@ class DefaultCommand extends Command
 			
 			$preflight->run($context);
 			
-			$this->trap([SIGINT, SIGTERM], function() use ($context, $teardown) {
-				$teardown->run($context);
-			});
+			$this->trap([SIGINT, SIGTERM], static fn() => $teardown->run($context));
 			
 			try {
 				$claude->run($context);
@@ -52,11 +50,11 @@ class DefaultCommand extends Command
 			return self::SUCCESS;
 		} catch (AbortedPipelineException $exception) {
 			error($exception->getMessage());
-			
-			return self::FAILURE;
 		} finally {
 			$this->newLine();
 		}
+		
+		return self::FAILURE;
 	}
 	
 	protected function newContext(): SessionContext
