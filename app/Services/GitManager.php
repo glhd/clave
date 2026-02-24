@@ -55,17 +55,12 @@ class GitManager
 	public function ensureIgnored(string $repo_path, string $pattern): void
 	{
 		$gitignore_path = $repo_path.'/.gitignore';
-
-		if (file_exists($gitignore_path)) {
-			$contents = file_get_contents($gitignore_path);
-			if (str_contains($contents, $pattern)) {
-				return;
-			}
+		$contents = file_exists($gitignore_path) ? file_get_contents($gitignore_path) : '';
+		
+		if (str_contains($contents, $pattern)) {
+			return;
 		}
 
-		file_put_contents(
-			$gitignore_path,
-			rtrim(file_get_contents($gitignore_path) ?? '')."\n{$pattern}\n"
-		);
+		file_put_contents($gitignore_path, rtrim($contents)."\n{$pattern}\n");
 	}
 }
