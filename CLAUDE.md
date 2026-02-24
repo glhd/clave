@@ -72,6 +72,7 @@ app/
 
 - Uses **Pest** for testing (not PHPUnit directly)
 - Uses **LaraLint** for linting (`glhd/laralint`)
+- Uses **PHP CS Fixer** for formatting
 - Commands auto-discovered from `app/Commands/`
 - Config in `config/` directory (Laravel Zero standard)
 
