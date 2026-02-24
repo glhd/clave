@@ -25,44 +25,65 @@ class ProvisionCommand extends Command
 			return self::SUCCESS;
 		}
 
-		if ($tart->exists($base_vm) && $this->option('force')) {
-			$this->info("Deleting existing base image '{$base_vm}'...");
-			$tart->stop($base_vm);
-			$tart->delete($base_vm);
-		}
+		$tmp_name = 'clave-tmp-'.bin2hex(random_bytes(4));
+
+		$this->trap([SIGINT, SIGTERM], function() use ($tart, $tmp_name) {
+			$this->newLine();
+			$this->warn('Interrupted — cleaning up temp VM...');
+			$tart->stop($tmp_name);
+			$tart->delete($tmp_name);
+			exit(1);
+		});
 
 		$this->info("Pulling OCI image: {$image}");
-		$tart->clone($image, $base_vm);
+		$tart->clone($image, $tmp_name);
 
 		$cpus = config('clave.vm.cpus');
 		$memory = config('clave.vm.memory');
 		$display = config('clave.vm.display');
-		$tart->set($base_vm, $cpus, $memory, $display);
+		$tart->set($tmp_name, $cpus, $memory, $display);
 
 		$password = config('clave.ssh.password');
 		$ssh->usePassword($password);
 
-		$this->info('Booting VM for provisioning...');
-		$tart->runBackground($base_vm);
+		$script_dir = sys_get_temp_dir().'/clave-provision-'.bin2hex(random_bytes(4));
+		mkdir($script_dir, 0700, true);
+		file_put_contents($script_dir.'/provision.sh', ProvisioningPipeline::toScript());
 
-		$this->info('Waiting for VM to be ready...');
-		$tart->waitForReady($base_vm, $ssh, 120);
+		try {
+			$this->info('Booting VM for provisioning...');
+			$tart->runBackground($tmp_name, ['provision' => $script_dir]);
 
-		$steps = ProvisioningPipeline::steps();
+			$this->info('Waiting for VM to be ready...');
+			$tart->waitForReady($tmp_name, $ssh, 120);
 
-		foreach ($steps as $key => $step) {
-			$this->info("  [{$key}] {$step['label']}...");
+			$this->info('Mounting provisioning script...');
+			$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs provision /mnt/provision');
 
-			foreach ($step['commands'] as $command) {
-				$this->line("    > {$command}");
-				$ssh->run($command, 300);
-			}
+			$this->info('Running provisioning script...');
+			$ssh->run('sudo bash /mnt/provision/provision.sh', 600);
+
+			$this->injectSshKey($ssh);
+
+			$this->info('Stopping VM...');
+			$tart->stop($tmp_name);
+		} catch (\Throwable $e) {
+			$this->error('Provisioning failed: '.$e->getMessage());
+			$tart->stop($tmp_name);
+			$tart->delete($tmp_name);
+
+			throw $e;
+		} finally {
+			@unlink($script_dir.'/provision.sh');
+			@rmdir($script_dir);
 		}
 
-		$this->injectSshKey($ssh);
+		if ($tart->exists($base_vm)) {
+			$this->info("Replacing existing base image '{$base_vm}'...");
+			$tart->delete($base_vm);
+		}
 
-		$this->info('Stopping VM...');
-		$tart->stop($base_vm);
+		$tart->rename($tmp_name, $base_vm);
 
 		$this->info('Base image provisioned successfully.');
 

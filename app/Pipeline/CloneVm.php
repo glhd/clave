@@ -19,6 +19,7 @@ class CloneVm
 
 		$context->status("Cloning VM: {$base_vm} → {$vm_name}");
 		$this->tart->clone($base_vm, $vm_name);
+		$this->tart->randomizeMac($vm_name);
 
 		$context->vm_name = $vm_name;
 

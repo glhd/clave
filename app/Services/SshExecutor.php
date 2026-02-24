@@ -18,12 +18,21 @@ class SshExecutor
 
 	protected ?string $password = null;
 
+	protected ?string $askpass_path = null;
+
 	public function __construct()
 	{
 		$this->user = config('clave.ssh.user');
 		$this->port = config('clave.ssh.port');
 		$this->key = $this->expandHome(config('clave.ssh.key'));
 		$this->options = config('clave.ssh.options', []);
+	}
+
+	public function __destruct()
+	{
+		if ($this->askpass_path && file_exists($this->askpass_path)) {
+			unlink($this->askpass_path);
+		}
 	}
 
 	public function keyPath(): string
@@ -41,6 +50,9 @@ class SshExecutor
 	public function usePassword(string $password): self
 	{
 		$this->password = $password;
+		$this->askpass_path = tempnam(sys_get_temp_dir(), 'clave-askpass-');
+		file_put_contents($this->askpass_path, "#!/bin/sh\necho ".escapeshellarg($password)."\n");
+		chmod($this->askpass_path, 0700);
 
 		return $this;
 	}
@@ -52,11 +64,12 @@ class SshExecutor
 			->throw();
 	}
 
-	public function interactive(string $command): mixed
+	public function interactive(string $command): int
 	{
-		return Process::forever()
-			->tty()
-			->run($this->buildCommand($command));
+		$exit_code = 0;
+		passthru($this->buildCommand($command), $exit_code);
+
+		return $exit_code;
 	}
 
 	public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed
@@ -94,9 +107,8 @@ class SshExecutor
 		$parts = [];
 
 		if ($this->password !== null) {
-			$parts[] = 'sshpass';
-			$parts[] = '-p';
-			$parts[] = escapeshellarg($this->password);
+			$parts[] = 'SSH_ASKPASS='.escapeshellarg($this->askpass_path);
+			$parts[] = 'SSH_ASKPASS_REQUIRE=force';
 		}
 
 		$parts[] = 'ssh';

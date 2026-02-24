@@ -67,6 +67,16 @@ class TartManager
 		return json_decode($result->output(), true) ?? [];
 	}
 
+	public function randomizeMac(string $name): mixed
+	{
+		return Process::run("tart set {$name} --random-mac")->throw();
+	}
+
+	public function rename(string $old_name, string $new_name): mixed
+	{
+		return Process::run("tart rename {$old_name} {$new_name}")->throw();
+	}
+
 	public function set(string $name, ?int $cpus = null, ?int $memory = null, ?string $display = null): mixed
 	{
 		$cmd = "tart set {$name}";

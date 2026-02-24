@@ -18,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
 
 	public function register(): void
 	{
-		Signals::resolveAvailabilityUsing(fn () => $this->app->runningInConsole()
+		Signals::resolveAvailabilityUsing(fn() => $this->app->runningInConsole()
 			&& ! $this->app->runningUnitTests()
 			&& extension_loaded('pcntl'));
 

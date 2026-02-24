@@ -79,6 +79,22 @@ test('ip returns valid ip address', function() {
 	expect($this->tart->ip('my-vm'))->toBe('192.168.64.5');
 });
 
+test('randomizeMac runs correct command', function() {
+	Process::fake();
+
+	$this->tart->randomizeMac('clave-abc123');
+
+	Process::assertRan('tart set clave-abc123 --random-mac');
+});
+
+test('rename runs correct command', function() {
+	Process::fake();
+
+	$this->tart->rename('clave-tmp-abc', 'clave-base');
+
+	Process::assertRan('tart rename clave-tmp-abc clave-base');
+});
+
 test('list returns parsed json', function() {
 	Process::fake([
 		'tart list --format json' => Process::result(output: '[{"name":"clave-base"}]'),
