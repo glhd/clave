@@ -30,6 +30,8 @@ class BootVm
 		$context->vm_ip = $this->tart->ip($context->vm_name);
 		$context->status("  VM ready at {$context->vm_ip}");
 
+		$this->ssh->run('sudo mount -a');
+
 		return $next($context);
 	}
 }

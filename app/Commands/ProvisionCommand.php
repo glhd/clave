@@ -5,6 +5,7 @@ namespace App\Commands;
 use App\Services\ProvisioningPipeline;
 use App\Services\SshExecutor;
 use App\Services\TartManager;
+use Illuminate\Support\Facades\Process;
 use LaravelZero\Framework\Commands\Command;
 
 class ProvisionCommand extends Command
@@ -38,14 +39,14 @@ class ProvisionCommand extends Command
 		$display = config('clave.vm.display');
 		$tart->set($base_vm, $cpus, $memory, $display);
 
+		$password = config('clave.ssh.password');
+		$ssh->usePassword($password);
+
 		$this->info('Booting VM for provisioning...');
 		$tart->runBackground($base_vm);
 
 		$this->info('Waiting for VM to be ready...');
 		$tart->waitForReady($base_vm, $ssh, 120);
-
-		$password = config('clave.ssh.password');
-		$ssh->usePassword($password);
 
 		$steps = ProvisioningPipeline::steps();
 
@@ -70,8 +71,18 @@ class ProvisionCommand extends Command
 
 	protected function injectSshKey(SshExecutor $ssh): void
 	{
-		$key_path = config('clave.ssh.key');
+		$key_path = $ssh->keyPath();
 		$pub_key_path = $key_path.'.pub';
+
+		if (! file_exists($key_path)) {
+			$key_dir = dirname($key_path);
+			if (! is_dir($key_dir)) {
+				mkdir($key_dir, 0700, true);
+			}
+
+			$this->info('  Generating SSH key pair...');
+			Process::run('ssh-keygen -t ed25519 -f '.escapeshellarg($key_path)." -N '' -q")->throw();
+		}
 
 		if (! file_exists($pub_key_path)) {
 			$this->warn("Public key not found at {$pub_key_path}. Skipping SSH key injection.");
@@ -82,6 +93,6 @@ class ProvisionCommand extends Command
 		$pub_key = trim(file_get_contents($pub_key_path));
 
 		$this->info('  Injecting SSH public key...');
-		$ssh->run("echo '{$pub_key}' >> ~/.ssh/authorized_keys");
+		$ssh->run('echo '.escapeshellarg($pub_key).' >> ~/.ssh/authorized_keys');
 	}
 }

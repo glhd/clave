@@ -22,8 +22,13 @@ class SshExecutor
 	{
 		$this->user = config('clave.ssh.user');
 		$this->port = config('clave.ssh.port');
-		$this->key = config('clave.ssh.key');
+		$this->key = $this->expandHome(config('clave.ssh.key'));
 		$this->options = config('clave.ssh.options', []);
+	}
+
+	public function keyPath(): string
+	{
+		return $this->key;
 	}
 
 	public function setHost(string $host): self
@@ -99,6 +104,7 @@ class SshExecutor
 
 		if ($this->password === null) {
 			$parts[] = '-i '.escapeshellarg($this->key);
+			$parts[] = '-o BatchMode=yes';
 		}
 
 		foreach ($this->options as $key => $value) {
@@ -106,5 +112,14 @@ class SshExecutor
 		}
 
 		return implode(' ', $parts);
+	}
+
+	protected function expandHome(string $path): string
+	{
+		if (str_starts_with($path, '~/')) {
+			return (getenv('HOME') ?: ($_SERVER['HOME'] ?? '')).substr($path, 1);
+		}
+
+		return $path;
 	}
 }
