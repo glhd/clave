@@ -10,8 +10,6 @@ class SshExecutor
 
 	protected int $port;
 
-	protected string $key;
-
 	protected array $options;
 
 	protected ?string $host = null;
@@ -20,11 +18,12 @@ class SshExecutor
 
 	protected ?string $askpass_path = null;
 
+	protected ?string $last_error = null;
+
 	public function __construct()
 	{
 		$this->user = config('clave.ssh.user');
 		$this->port = config('clave.ssh.port');
-		$this->key = $this->expandHome(config('clave.ssh.key'));
 		$this->options = config('clave.ssh.options', []);
 	}
 
@@ -33,11 +32,6 @@ class SshExecutor
 		if ($this->askpass_path && file_exists($this->askpass_path)) {
 			unlink($this->askpass_path);
 		}
-	}
-
-	public function keyPath(): string
-	{
-		return $this->key;
 	}
 
 	public function setHost(string $host): self
@@ -87,10 +81,25 @@ class SshExecutor
 			$result = Process::timeout(5)
 				->run($this->buildCommand('echo ok'));
 
-			return $result->successful() && str_contains($result->output(), 'ok');
-		} catch (\Throwable) {
+			if ($result->successful() && str_contains($result->output(), 'ok')) {
+				$this->last_error = null;
+
+				return true;
+			}
+
+			$this->last_error = trim($result->errorOutput()) ?: trim($result->output());
+
+			return false;
+		} catch (\Throwable $e) {
+			$this->last_error = $e->getMessage();
+
 			return false;
 		}
+	}
+
+	public function lastError(): ?string
+	{
+		return $this->last_error;
 	}
 
 	protected function buildCommand(string $remote_command): string
@@ -114,24 +123,10 @@ class SshExecutor
 		$parts[] = 'ssh';
 		$parts[] = "-p {$this->port}";
 
-		if ($this->password === null) {
-			$parts[] = '-i '.escapeshellarg($this->key);
-			$parts[] = '-o BatchMode=yes';
-		}
-
 		foreach ($this->options as $key => $value) {
 			$parts[] = "-o {$key}={$value}";
 		}
 
 		return implode(' ', $parts);
-	}
-
-	protected function expandHome(string $path): string
-	{
-		if (str_starts_with($path, '~/')) {
-			return (getenv('HOME') ?: ($_SERVER['HOME'] ?? '')).substr($path, 1);
-		}
-
-		return $path;
 	}
 }

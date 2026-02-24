@@ -5,7 +5,6 @@ namespace App\Commands;
 use App\Services\ProvisioningPipeline;
 use App\Services\SshExecutor;
 use App\Services\TartManager;
-use Illuminate\Support\Facades\Process;
 use LaravelZero\Framework\Commands\Command;
 
 class ProvisionCommand extends Command
@@ -63,8 +62,6 @@ class ProvisionCommand extends Command
 			$this->info('Running provisioning script...');
 			$ssh->run('sudo bash /mnt/provision/provision.sh', 600);
 
-			$this->injectSshKey($ssh);
-
 			$this->info('Stopping VM...');
 			$tart->stop($tmp_name);
 		} catch (\Throwable $e) {
@@ -88,32 +85,5 @@ class ProvisionCommand extends Command
 		$this->info('Base image provisioned successfully.');
 
 		return self::SUCCESS;
-	}
-
-	protected function injectSshKey(SshExecutor $ssh): void
-	{
-		$key_path = $ssh->keyPath();
-		$pub_key_path = $key_path.'.pub';
-
-		if (! file_exists($key_path)) {
-			$key_dir = dirname($key_path);
-			if (! is_dir($key_dir)) {
-				mkdir($key_dir, 0700, true);
-			}
-
-			$this->info('  Generating SSH key pair...');
-			Process::run('ssh-keygen -t ed25519 -f '.escapeshellarg($key_path)." -N '' -q")->throw();
-		}
-
-		if (! file_exists($pub_key_path)) {
-			$this->warn("Public key not found at {$pub_key_path}. Skipping SSH key injection.");
-
-			return;
-		}
-
-		$pub_key = trim(file_get_contents($pub_key_path));
-
-		$this->info('  Injecting SSH public key...');
-		$ssh->run('echo '.escapeshellarg($pub_key).' >> ~/.ssh/authorized_keys');
 	}
 }

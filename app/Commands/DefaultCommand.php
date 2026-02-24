@@ -11,9 +11,8 @@ use App\Pipeline\CreateWorktree;
 use App\Pipeline\RunClaudeCode;
 use App\Services\GitManager;
 use App\Services\SessionTeardown;
-use App\Services\SshExecutor;
 use App\Services\TartManager;
-use Illuminate\Support\Facades\Pipeline;
+use Illuminate\Pipeline\Pipeline;
 use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
 
@@ -28,14 +27,13 @@ class DefaultCommand extends Command
 	public function handle(
 		GitManager $git,
 		TartManager $tart,
-		SshExecutor $ssh,
 		SessionTeardown $teardown,
 	): int {
-		if (! $this->preflight($git, $tart, $ssh)) {
+		if (! $this->preflight($git, $tart)) {
 			return self::FAILURE;
 		}
 		
-		$this->call('migrate', ['--force' => true]);
+		$this->callSilently('migrate', ['--force' => true]);
 		
 		$session_id = Str::random(8);
 		$project_dir = getcwd();
@@ -70,7 +68,7 @@ class DefaultCommand extends Command
 		});
 		
 		try {
-			Pipeline::send($context)
+			app(Pipeline::class)->send($context)
 				->through([
 					CreateWorktree::class,
 					CloneVm::class,
@@ -87,7 +85,7 @@ class DefaultCommand extends Command
 		return self::SUCCESS;
 	}
 	
-	protected function preflight(GitManager $git, TartManager $tart, SshExecutor $ssh): bool
+	protected function preflight(GitManager $git, TartManager $tart): bool
 	{
 		$cwd = getcwd();
 		
@@ -106,19 +104,12 @@ class DefaultCommand extends Command
 		$base_vm = config('clave.base_vm');
 		if (! $tart->exists($base_vm)) {
 			$this->info("Base VM image '{$base_vm}' not found. Provisioning...");
-			
+
 			if (self::FAILURE === $this->call('provision')) {
 				return false;
 			}
 		}
-		
-		if (! file_exists($ssh->keyPath())) {
-			$this->error("SSH key not found at {$ssh->keyPath()}.");
-			$this->info("Run 'clave provision --force' to generate a key and re-provision the base VM.");
-			
-			return false;
-		}
-		
+
 		return true;
 	}
 }

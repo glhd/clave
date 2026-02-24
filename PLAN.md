@@ -303,18 +303,27 @@ class BootVm
 {
     public function __construct(
         protected TartManager $tart,
+        protected SshExecutor $ssh,
     ) {}
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
         $mount_path = $context->worktree_path ?? $context->project_dir;
 
-        $vm_process = $this->tart->runBackground($context->vm_name, [
+        $this->tart->runBackground($context->vm_name, [
             'project' => $mount_path,
         ]);
 
-        $context->vm_pid = $vm_process->id();
-        $context->vm_ip = $this->tart->waitForReady($context->vm_name, timeout_seconds: 90);
+        $this->ssh->usePassword(config('clave.ssh.password'));
+
+        $ip = $this->tart->ip($context->vm_name, timeout: 90);
+        $context->vm_ip = $ip;
+        $this->ssh->setHost($ip);
+
+        // Wait for SSH with per-attempt feedback
+        $this->waitForSsh($context);
+
+        $this->ssh->run('sudo mount -a');
 
         return $next($context);
     }
@@ -762,25 +771,10 @@ class ProvisionCommand extends Command
             $this->info("    ✓");
         }
 
-        $this->injectSshKey($ssh);
-
         $tart->stop('clave-base');
         $this->info('Base image provisioned successfully.');
 
         return 0;
-    }
-
-    protected function injectSshKey(SshExecutor $ssh): void
-    {
-        $key_dir = $_SERVER['HOME'] . '/.config/clave/ssh';
-
-        if (! file_exists("{$key_dir}/id_ed25519")) {
-            @mkdir($key_dir, 0700, true);
-            Process::run("ssh-keygen -t ed25519 -f {$key_dir}/id_ed25519 -N ''")->throw();
-        }
-
-        $pub_key = trim(file_get_contents("{$key_dir}/id_ed25519.pub"));
-        $ssh->run("echo '{$pub_key}' >> ~/.ssh/authorized_keys");
     }
 }
 ```
@@ -888,7 +882,6 @@ class ProvisioningPipeline
             static::claudeCode(),
             static::laravelDirectories(),
             static::virtiofsMounts(),
-            static::sshKeys(),
         ];
     }
 
@@ -1040,19 +1033,6 @@ SITE',
         ];
     }
 
-    protected static function sshKeys(): array
-    {
-        return [
-            'name' => 'SSH directory',
-            'test' => 'test -d ~/.ssh',
-            'commands' => [
-                'mkdir -p ~/.ssh',
-                'chmod 700 ~/.ssh',
-                'touch ~/.ssh/authorized_keys',
-                'chmod 600 ~/.ssh/authorized_keys',
-            ],
-        ];
-    }
 }
 ```
 
@@ -1216,56 +1196,33 @@ class HerdManager
 
 ### SshExecutor
 
+Uses password auth via `SSH_ASKPASS` for all VM connections. VMs are ephemeral and local, so key management adds complexity with no security benefit.
+
 ```php
 class SshExecutor
 {
-    protected string $host = '';
     protected string $user;
-    protected string $key_path;
+    protected int $port;
+    protected array $options;
+    protected ?string $host = null;
+    protected ?string $password = null;
+    protected ?string $askpass_path = null;
+    protected ?string $last_error = null;
 
     public function __construct()
     {
-        $this->user = config('clave.ssh.user', 'admin');
-        $this->key_path = config('clave.ssh.key_path',
-            $_SERVER['HOME'] . '/.config/clave/ssh/id_ed25519'
-        );
+        $this->user = config('clave.ssh.user');
+        $this->port = config('clave.ssh.port');
+        $this->options = config('clave.ssh.options', []);
     }
 
-    public function setHost(string $host): void
-    {
-        $this->host = $host;
-    }
-
-    protected function sshFlags(): string
-    {
-        return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i {$this->key_path}";
-    }
-
-    public function run(string $command, int $timeout = 60): ProcessResult
-    {
-        return Process::timeout($timeout)->run(
-            "ssh {$this->sshFlags()} {$this->user}@{$this->host} " . escapeshellarg($command)
-        );
-    }
-
-    public function interactive(string $command): int
-    {
-        return Process::forever()->tty()->run(
-            "ssh -t {$this->sshFlags()} {$this->user}@{$this->host} " . escapeshellarg($command)
-        )->exitCode();
-    }
-
-    public function tunnel(string $host, int $local_port, int $remote_port): InvokedProcess
-    {
-        return Process::start(
-            "ssh -N {$this->sshFlags()} -L {$local_port}:localhost:{$remote_port} {$this->user}@{$host}"
-        );
-    }
-
-    public function test(string $command): bool
-    {
-        return $this->run($command)->successful();
-    }
+    public function usePassword(string $password): self { /* creates SSH_ASKPASS script */ }
+    public function setHost(string $host): self { ... }
+    public function run(string $command, int $timeout = 60): mixed { ... }
+    public function interactive(string $command): int { /* passthru for TTY */ }
+    public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed { ... }
+    public function test(): bool { /* returns false with last_error on failure */ }
+    public function lastError(): ?string { ... }
 }
 ```
 
@@ -1284,7 +1241,8 @@ class SshExecutor
         "disk_gb": 32
     },
     "ssh": {
-        "user": "admin"
+        "user": "admin",
+        "password": "admin"
     },
     "claude": {
         "model": null,
@@ -1363,9 +1321,8 @@ Prove the core lifecycle: boot a VM, get a shell, tear it down.
 1. Scaffold Laravel Zero project, install database/dotenv components
 2. `SessionContext` and `ServiceConfig` DTOs
 3. `TartManager` — all methods
-4. `SshExecutor` — all methods
-5. SSH keypair generation (store in `~/.config/clave/ssh/`)
-6. `ProvisionCommand` + `ProvisioningPipeline` — build base image with PHP/nginx/Claude Code
+4. `SshExecutor` — all methods (password auth via SSH_ASKPASS)
+5. `ProvisionCommand` + `ProvisioningPipeline` — build base image with PHP/nginx/Claude Code
 7. Pipeline stages: CreateWorktree → CloneVm → BootVm → RunClaudeCode (minimal)
 8. `SessionTeardown` — cleanup VM, worktree prompt
 9. Signal handling (SIGINT/SIGTERM)
@@ -1419,7 +1376,6 @@ Connect the VM to host services and expose the app.
 
 3. **`tart run` process management.** Need to verify `Process::start()` keeps the VM alive while the parent blocks on TTY. May need `nohup` with PID file as fallback.
 
-4. **SSH key injection during first provisioning.** Base Ubuntu image uses `admin`/`admin`. Provisioning needs password-based SSH for the initial key injection. Options: `sshpass` (via pkgx),
-   `tart exec` (guest agent), or `expect`. After provisioning, all sessions use key auth.
+4. ~~**SSH key injection during first provisioning.**~~ **Resolved:** VMs use password auth (`admin`/`admin`) via `SSH_ASKPASS` for all connections. Key-based auth was dropped — VMs are ephemeral and local, so key management added complexity with no benefit.
 
 5. **Composer install on VirtioFS.** v0 runs directly on the mount. If too slow, install on VM local disk and symlink `vendor/` back.

@@ -56,15 +56,6 @@ class ProvisioningPipeline
 					'echo "project /srv/project virtiofs rw,nofail 0 0" | sudo tee -a /etc/fstab',
 				],
 			],
-			'sshKeys' => [
-				'label' => 'Configuring SSH keys',
-				'commands' => [
-					'mkdir -p ~/.ssh',
-					'chmod 700 ~/.ssh',
-					'touch ~/.ssh/authorized_keys',
-					'chmod 600 ~/.ssh/authorized_keys',
-				],
-			],
 		];
 	}
 

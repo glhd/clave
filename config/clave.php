@@ -13,7 +13,6 @@ return [
 	'ssh' => [
 		'user' => env('CLAVE_SSH_USER', 'admin'),
 		'port' => env('CLAVE_SSH_PORT', 22),
-		'key' => env('CLAVE_SSH_KEY', (getenv('HOME') ?: ($_SERVER['HOME'] ?? '')).'/.config/clave/ssh/id_ed25519'),
 		'password' => env('CLAVE_SSH_PASSWORD', 'admin'),
 		'options' => [
 			'StrictHostKeyChecking' => 'no',
