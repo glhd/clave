@@ -31,6 +31,8 @@ class DefaultCommand extends Command
 		AuthManager $auth,
 		SessionTeardown $teardown,
 	): int {
+		$this->newLine();
+		
 		if (! $this->preflight($git, $tart, $auth)) {
 			return self::FAILURE;
 		}
@@ -82,6 +84,7 @@ class DefaultCommand extends Command
 			$this->newLine();
 			$this->info('Cleaning up...');
 			$teardown($context, $this);
+			$this->newLine();
 		}
 		
 		return self::SUCCESS;

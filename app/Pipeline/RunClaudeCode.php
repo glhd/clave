@@ -59,11 +59,15 @@ class RunClaudeCode
 
 		$settings = base64_encode(json_encode([
 			'hasCompletedOnboarding' => true,
+			'shiftEnterKeyBindingInstalled' => true,
+			'theme' => 'light',
+			'skipDangerousModePermissionPrompt' => true,
 		], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
 		$this->ssh->run(
 			"mkdir -p ~/.claude"
 			." && echo {$credentials} | base64 -d > ~/.claude/.credentials.json"
+			." && echo {$settings} | base64 -d > ~/.claude.json"
 			." && echo {$settings} | base64 -d > ~/.claude/settings.json"
 		);
 	}

@@ -111,8 +111,10 @@ class BootVm
 
 			$elapsed = time() - $start;
 			$error = $this->ssh->lastError();
-			$context->status("  Attempt {$attempts} failed ({$elapsed}s elapsed)"
-				.($error ? ": {$error}" : ''));
+			
+			if ($attempts > 5) {
+				$context->status(" - Attempt {$attempts} failed ({$elapsed}s elapsed)".($error ? ": {$error}" : ''));
+			}
 
 			sleep(2);
 		}
