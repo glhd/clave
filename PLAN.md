@@ -8,20 +8,25 @@ A Laravel Zero CLI that spins up ephemeral Ubuntu VMs via Tart for isolated Clau
 
 ### Sprint 1 — Boot Loop
 - [x] Scaffold Laravel Zero project, install database/dotenv components
-- [x] `SessionContext` and `ServiceConfig` DTOs
+- [x] `SessionContext`, `ServiceConfig`, `OnExit`, and `Recipe` DTOs (in `app/Data/`)
 - [x] `OnExit` enum (keep/merge/discard) with `EnumHelpers` trait
-- [x] `TartManager` — clone, run, stop, delete, ip, exists, list, set, randomizeMac, rename
+- [x] `Recipe` enum (Laravel/Unknown) for project type detection
+- [x] `TartManager` — clone, run, stop, delete, ip, exists, list, set, randomizeMac, rename, waitForReady
 - [x] `SshExecutor` — run, interactive, tunnel, test (password auth via SSH_ASKPASS)
 - [x] `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4, nginx, Node 22, Claude Code)
 - [x] `AuthManager` + `AuthCommand` — API key + OAuth token support with local storage
-- [x] Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
+- [x] Preflight pipeline: `DetectRecipe → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
 - [x] Session pipeline: `CloneRepo → CloneVm → BootVm → RunClaudeCode`
-- [x] `SessionTeardown` — VM stop/delete, worktree prompt, Herd unproxy, tunnel kill, session record cleanup
+- [x] `SessionTeardown` — VM stop/delete, clone prompt, Herd unproxy, tunnel kill, session record cleanup (with progress bar)
 - [x] Signal handling via `$this->trap()` (SIGINT/SIGTERM)
 - [x] Sessions SQLite table + `Session` model
 - [x] `SessionPipeline` base class with progress tracking via Laravel Prompts
 - [x] `Step` interface + `ProgressAware` interface + `AcceptsProgress` trait
 - [x] VirtioFS mount with retry logic and diagnostics
+- [x] `AbortedPipelineException` for pipeline error handling
+- [x] Cloudflare Worker for install script distribution (`worker/`)
+- [x] GitHub Actions release workflow (`.github/workflows/release.yml`)
+- [x] PHAR build configuration (`box.json`, `phpacker` dependency)
 
 ### Sprint 2 — Networking + Herd
 - [ ] `DiscoverGateway` step — find NAT gateway IP inside VM
@@ -35,12 +40,13 @@ A Laravel Zero CLI that spins up ephemeral Ubuntu VMs via Tart for isolated Clau
 - [ ] `SessionsCommand` — list active sessions
 - [ ] `CleanupCommand` — remove orphaned VMs
 - [ ] `ConfigCommand` — manage per-user settings
-- [ ] `GitManager` merge flow verification (merge worktree back to base branch)
+- [ ] `GitManager` merge flow verification (merge clone back to base branch)
 - [ ] `--resume` flag for reconnecting to a running session
 - [ ] Error handling: composer failures, SSH timeouts, missing host services
 
 ### Sprint 4 — Distribution + Future
-- [ ] Build PHAR: `php clave app:build`
+- [x] Build PHAR: `phpacker` configured with `box.json`
+- [x] Install script via Cloudflare Worker
 - [ ] Per-project `.clave.json` config
 - [ ] `clave provision --update`
 - [ ] In-VM services mode (`services.mode: "vm"`)
@@ -55,18 +61,19 @@ A Laravel Zero CLI that spins up ephemeral Ubuntu VMs via Tart for isolated Clau
 clave
 
 # That's it. Clave will:
-# 1. Ensure a provisioned base VM image exists (first run only)
-# 2. Create a git worktree for this session
-# 3. Clone the base image to an ephemeral VM
-# 4. Boot the VM with the worktree mounted via VirtioFS
-# 5. Set up port forwarding so the VM's nginx is reachable from the host
-# 6. Configure Herd Pro proxy (project.test → VM)
-# 7. Bootstrap the Laravel app inside the VM (pointing at host MySQL/Redis)
-# 8. Drop you into an interactive Claude Code session inside the VM
-# 9. On exit: tear down proxy, stop VM, delete clone, prompt about worktree
+# 1. Detect the project type (Laravel, etc.)
+# 2. Ensure a provisioned base VM image exists (first run only)
+# 3. Clone the repo for this session
+# 4. Clone the base image to an ephemeral VM
+# 5. Boot the VM with the clone mounted via VirtioFS
+# 6. Set up port forwarding so the VM's nginx is reachable from the host
+# 7. Configure Herd Pro proxy (project.test → VM)
+# 8. Bootstrap the Laravel app inside the VM (pointing at host MySQL/Redis)
+# 9. Drop you into an interactive Claude Code session inside the VM
+# 10. On exit: tear down proxy, stop VM, delete clone, prompt about changes
 ```
 
-Multiple simultaneous sessions work naturally — each `clave` invocation gets its own worktree, its own VM clone, and its own port. Run three terminals, run `clave` three times, get three isolated Claude Code agents working in parallel on different branches.
+Multiple simultaneous sessions work naturally — each `clave` invocation gets its own repo clone, its own VM clone, and its own port. Run three terminals, run `clave` three times, get three isolated Claude Code agents working in parallel on different branches.
 
 ---
 
@@ -77,10 +84,10 @@ Terminal 1                    Terminal 2                    Terminal 3
 clave                         clave                         clave
   │                             │                             │
   ▼                             ▼                             ▼
-worktree: .clave/wt/s-a1b2    .clave/wt/s-c3d4             .clave/wt/s-e5f6
-vm:       clave-a1b2           clave-c3d4                   clave-e5f6
-port:     8081                  8082                         8083
-proxy:    my-app-a1b2.test     my-app-c3d4.test             my-app-e5f6.test
+clone: ~/.clave/repos/s-a1b2  ~/.clave/repos/s-c3d4        ~/.clave/repos/s-e5f6
+vm:    clave-a1b2              clave-c3d4                   clave-e5f6
+port:  8081                    8082                          8083
+proxy: my-app-a1b2.test       my-app-c3d4.test             my-app-e5f6.test
   │                             │                             │
   ▼                             ▼                             ▼
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
@@ -121,30 +128,28 @@ The NAT gateway IP is discovered by running `ip route | grep default` inside the
 
 ---
 
-## Git Worktree Strategy
+## Git Clone Strategy
 
 A git repo is **required**. If the current directory is not inside a git repository, `clave` exits with an error.
 
-When `clave` starts, it creates a worktree so each session has an isolated copy of the codebase. Claude Code in session A can be refactoring the auth system while session B rewrites the billing module — no conflicts.
+When `clave` starts, it creates a local clone so each session has an isolated copy of the codebase. Claude Code in session A can be refactoring the auth system while session B rewrites the billing module — no conflicts.
 
 ```
 my-app/                          # main working copy (untouched)
-my-app/.clave/wt/s-a1b2c3d4/    # session A's worktree
-my-app/.clave/wt/s-e5f6g7h8/    # session B's worktree
+~/.clave/repos/s-a1b2c3d4/      # session A's clone
+~/.clave/repos/s-e5f6g7h8/      # session B's clone
 ```
 
-**Worktree lifecycle:**
+**Clone lifecycle:**
 
 1. Generate a random 8-character session ID via `Str::random(8)`
-2. Create a new branch: `clave/s-{id}` from current HEAD
-3. `git worktree add .clave/wt/s-{id} clave/s-{id}`
-4. Mount `.clave/wt/s-{id}` into the VM via VirtioFS at `/srv/project`
+2. `git clone --local --branch {base_branch} . ~/.clave/repos/s-{id}`
+3. `git checkout -b clave/s-{id}` in the clone
+4. Mount `~/.clave/repos/s-{id}` into the VM via VirtioFS at `/srv/project`
 5. On session exit, prompt (via Laravel Prompts `select()`):
-    - **Keep** (default) — leave the worktree and branch for manual review
-    - **Merge** — merge the session branch back to the original branch, remove worktree
-    - **Discard** — remove worktree and delete branch
-
-`.clave/` is automatically added to `.gitignore` on first use.
+    - **Keep** (default) — leave the clone and branch for manual review
+    - **Merge** — auto-commit WIP changes, fetch clone branch into original repo, merge, remove clone
+    - **Discard** — remove clone directory
 
 ---
 
@@ -157,8 +162,8 @@ The session lifecycle is split into two pipelines, both extending a `SessionPipe
 ```php
 abstract class SessionPipeline extends Pipeline
 {
-    abstract public function label(): string;
-    abstract public function steps(): array;
+    abstract protected function label(): string;
+    abstract protected function steps(): array;
 
     public function run(SessionContext $context): SessionContext
     {
@@ -196,30 +201,28 @@ trait AcceptsProgress
 ```php
 class SessionContext
 {
+    // Mutable properties populated by pipeline stages
+    public ?string $base_branch = null;
+    public ?string $vm_name = null;
+    public ?string $vm_ip = null;
+    public ?string $clone_path = null;
+    public ?string $clone_branch = null;
+    public ?string $proxy_name = null;
+    public ?int $tunnel_port = null;
+    public ?InvokedProcess $tunnel_process = null;
+    public ?ServiceConfig $services = null;
+    public Recipe $recipe = Recipe::Unknown;
+    public ?Session $session = null;
+
     public function __construct(
         // Determined at creation
         public readonly string $session_id,
         public readonly string $project_name,
         public readonly string $project_dir,
-        public readonly ?OnExit $on_exit = null,
-        public readonly ?Command $command = null,
-
-        // Populated by pipeline stages
-        public ?string $base_branch = null,
-        public ?string $vm_name = null,
-        public ?string $vm_ip = null,
-        public ?string $clone_path = null,
-        public ?string $clone_branch = null,
-        public ?string $proxy_name = null,
-        public ?int $tunnel_port = null,
-        public ?InvokedProcess $tunnel_process = null,
-        public ?ServiceConfig $services = null,
-        public ?Session $session = null,
+        public ?OnExit $on_exit = null,
+        public ?Command $command = null,
     ) {}
 
-    public function info(string $message): void { ... }
-    public function warn(string $message): void { ... }
-    public function error(string $message): void { ... }
     public function abort(string $message): never { ... }
 }
 ```
@@ -234,6 +237,20 @@ enum OnExit: string
     case Keep = 'keep';
     case Merge = 'merge';
     case Discard = 'discard';
+
+    public function label(): string { ... }
+}
+```
+
+### Recipe Enum
+
+```php
+enum Recipe: string
+{
+    use EnumHelpers;
+
+    case Laravel = 'laravel';
+    case Unknown = 'unknown';
 }
 ```
 
@@ -261,15 +278,13 @@ class ServiceConfig
 
 $context = $this->newContext();
 
-// Phase 1: Validate project, check auth, ensure VM exists
+// Phase 1: Detect project, check auth, ensure VM exists
 $preflight->run($context);
 
 // Register cleanup on interrupt
-$this->trap([SIGINT, SIGTERM], function () use ($context, $teardown) {
-    $teardown->run($context);
-});
+$this->trap([SIGINT, SIGTERM], static fn() => $teardown->run($context));
 
-// Phase 2: Create worktree, boot VM, run Claude
+// Phase 2: Clone repo, boot VM, run Claude
 try {
     $claude->run($context);
 } finally {
@@ -277,15 +292,17 @@ try {
 }
 ```
 
+The entire handle method is wrapped in a try/catch for `AbortedPipelineException`, which displays the error message via `Laravel\Prompts\error()` and returns `FAILURE`.
+
 ### Preflight Pipeline
 
 Label: "Setting up project..."
 
 ```
-ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession
+DetectRecipe → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession
 ```
 
-1. **ValidateProject** — checks for `artisan` file, aborts if not a Laravel project
+1. **DetectRecipe** — checks for `artisan` + `composer.json` to detect Laravel projects, sets `context->recipe`
 2. **GetGitBranch** — verifies git repo, sets `context->base_branch`
 3. **EnsureVmExists** — checks for base VM, calls `ProvisionCommand` if missing
 4. **CheckClaudeAuthentication** — verifies auth via `AuthManager`, attempts setup if missing
@@ -313,16 +330,20 @@ class CloneRepo implements Step, ProgressAware
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
-        $branch = "clave/s-{$context->session_id}";
-        $clone_path = "{$context->project_dir}/.clave/wt/s-{$context->session_id}";
+        $clone_branch = "clave/s-{$context->session_id}";
+        $clone_path = $this->cloneBasePath().'/s-'.$context->session_id;
 
-        $this->git->ensureIgnored($context->project_dir, '.clave/');
-        $this->git->cloneLocal($context->project_dir, $clone_path, $branch);
+        $this->git->cloneLocal($context->project_dir, $clone_path, $context->base_branch, $clone_branch);
 
         $context->clone_path = $clone_path;
-        $context->clone_branch = $branch;
+        $context->clone_branch = $clone_branch;
 
         return $next($context);
+    }
+
+    protected function cloneBasePath(): string
+    {
+        return ($_SERVER['HOME'] ?? getenv('HOME')).'/.clave/repos';
     }
 }
 ```
@@ -476,7 +497,7 @@ class BootstrapLaravel implements Step, ProgressAware
 
 ## Session Teardown
 
-Cleanup runs after the pipeline completes (or on interrupt via signal handler). Each step is guarded by null checks and wrapped in `rescue()` so a failure in one doesn't prevent the others. A `$completed` flag prevents double execution.
+Cleanup runs after the pipeline completes (or on interrupt via signal handler). Each step is guarded by null checks and wrapped in `rescue()` so a failure in one doesn't prevent the others. A `$completed` flag prevents double execution. Teardown displays its own progress bar.
 
 ```php
 class SessionTeardown
@@ -491,21 +512,32 @@ class SessionTeardown
 
         $this->completed = true;
 
-        $this->unproxy($context);       // Remove Herd proxy if set
-        $this->killTunnel($context);     // Stop SSH tunnel if running
-        $this->stopVm($context);         // tart stop
-        $this->deleteVm($context);       // tart delete
-        $this->handleClone($context); // Prompt: keep/merge/discard
-        $this->deleteSession($context);  // Remove Session record
+        $steps = [
+            $this->unproxy(...),
+            $this->killTunnel(...),
+            $this->stopVm(...),
+            $this->deleteVm(...),
+            $this->handleClone(...),
+            $this->deleteSession(...),
+        ];
+
+        $progress = progress('Cleaning up...', count($steps));
+
+        foreach ($steps as $step) {
+            rescue(fn() => $step($context, $progress));
+            $progress->advance();
+        }
+
+        $progress->finish();
     }
 
-    protected function handleClone(SessionContext $context): void
+    protected function handleClone(SessionContext $context, Progress $progress): void
     {
         $action = $context->on_exit;
 
         // If no pre-selected action, prompt user via Laravel Prompts
         $action ??= OnExit::coerce(select(
-            label: 'What would you like to do with the worktree?',
+            label: 'What would you like to do with the session changes?',
             options: OnExit::toSelectArray(),
             default: OnExit::Keep->value,
         ));
@@ -535,30 +567,28 @@ class DefaultCommand extends Command
         ClaudeCodePipeline $claude,
         SessionTeardown $teardown,
     ): int {
-        clear();
-        $this->callSilently('migrate', ['--force' => true]);
-
-        $context = new SessionContext(
-            session_id: Str::random(8),
-            project_name: basename(getcwd()),
-            project_dir: getcwd(),
-            on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
-            command: $this,
-        );
-
-        $preflight->run($context);
-
-        $this->trap([SIGINT, SIGTERM], function () use ($context, $teardown) {
-            $teardown->run($context);
-        });
-
         try {
-            $claude->run($context);
-        } finally {
-            $teardown->run($context);
+            clear();
+            $this->callSilently('migrate', ['--force' => true]);
+
+            $context = $this->newContext();
+
+            $preflight->run($context);
+
+            $this->trap([SIGINT, SIGTERM], static fn() => $teardown->run($context));
+
+            try {
+                $claude->run($context);
+            } finally {
+                $teardown->run($context);
+            }
+
+            return self::SUCCESS;
+        } catch (AbortedPipelineException $exception) {
+            error($exception->getMessage());
         }
 
-        return self::SUCCESS;
+        return self::FAILURE;
     }
 }
 ```
@@ -571,7 +601,7 @@ Builds or rebuilds the base VM image. Generates a provisioning bash script via `
 class ProvisionCommand extends Command
 {
     protected $signature = 'provision
-        {--force : Re-provision}
+        {--force : Re-provision even if base image exists}
         {--image= : OCI image to pull}';
 
     public function handle(TartManager $tart, SshExecutor $ssh): int
@@ -583,6 +613,7 @@ class ProvisionCommand extends Command
         // Boot VM, wait for SSH
         // Execute provisioning script
         // Stop VM, rename to base VM name
+        // Signal handler cleans up temp VM on interrupt
     }
 }
 ```
@@ -657,15 +688,18 @@ The base image provisioning installs everything needed so per-session boot is fa
 `ProvisioningPipeline` generates a self-contained bash script via `toScript()` which is mounted into the VM and executed. This is faster than step-by-step SSH execution.
 
 **Provisioned software:**
-- Base system packages (git, curl, wget, unzip)
-- PHP 8.4 + extensions (curl, mbstring, xml, mysql, redis, sqlite3, bcmath, gd, intl)
-- PHP-FPM pool configuration
-- Composer
-- Nginx with Laravel site config
+- Base system packages (git, curl, unzip, software-properties-common)
+- PHP 8.4 + extensions (cli, common, curl, mbstring, xml, zip, mysql, redis, sqlite3, bcmath, gd, intl)
+- Nginx (enabled via systemd)
 - Node.js 22 (via NodeSource)
-- Claude Code CLI (`@anthropic-ai/claude-code`)
+- Claude Code CLI (installed via `claude.ai/install.sh` for the `admin` user)
 - Laravel directories (`/srv/project`)
-- VirtioFS fstab entry (`com.apple.virtio-fs.automount /srv/project virtiofs`)
+- VirtioFS fstab entry (`com.apple.virtio-fs.automount /srv/project virtiofs rw,nofail`)
+
+**Not yet provisioned** (needed for Sprint 2):
+- Composer
+- PHP-FPM pool configuration
+- Nginx site config for Laravel
 
 ---
 
@@ -676,7 +710,7 @@ The base image provisioning installs everything needed so per-session boot is fa
 ```php
 class TartManager
 {
-    public function clone(string $source, string $name): void;
+    public function clone(string $source, string $name): mixed;
     public function runBackground(string $name, array $dirs, bool $no_graphics = true): mixed;
     public function stop(string $name): void;
     public function delete(string $name): void;
@@ -697,10 +731,10 @@ class GitManager
 {
     public function isRepo(string $path): bool;
     public function currentBranch(string $path): string;
-    public function cloneLocal(string $repo_path, string $clone_path, string $branch): void;
-    public function removeClone(string $repo_path, string $clone_path): void;
-    public function mergeAndCleanClone(string $repo_path, string $clone_path, string $branch, string $target): void;
-    public function ensureIgnored(string $repo_path, string $pattern): void;
+    public function cloneLocal(string $repo_path, string $clone_path, string $base_branch, string $clone_branch): mixed;
+    public function removeClone(string $clone_path): void;
+    public function commitAllChanges(string $clone_path, string $message): bool;
+    public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): void;
 }
 ```
 
@@ -800,12 +834,12 @@ clave/
 │   ├── Commands/
 │   │   ├── DefaultCommand.php
 │   │   ├── ProvisionCommand.php
-│   │   ├── AuthCommand.php
-│   │   └── LintCommand.php
-│   ├── Dto/
+│   │   └── AuthCommand.php
+│   ├── Data/
 │   │   ├── SessionContext.php
 │   │   ├── ServiceConfig.php
-│   │   └── OnExit.php
+│   │   ├── OnExit.php
+│   │   └── Recipe.php
 │   ├── Exceptions/
 │   │   └── AbortedPipelineException.php
 │   ├── Models/
@@ -815,7 +849,7 @@ clave/
 │   │   │   ├── Step.php                    (interface)
 │   │   │   ├── ProgressAware.php           (interface)
 │   │   │   ├── AcceptsProgress.php         (trait)
-│   │   │   ├── ValidateProject.php
+│   │   │   ├── DetectRecipe.php
 │   │   │   ├── GetGitBranch.php
 │   │   │   ├── EnsureVmExists.php
 │   │   │   ├── CheckClaudeAuthentication.php
@@ -825,6 +859,7 @@ clave/
 │   │   │   ├── BootVm.php
 │   │   │   └── RunClaudeCode.php
 │   │   ├── SessionPipeline.php             (abstract base)
+│   │   ├── HandlesSession.php              (interface)
 │   │   ├── PreflightPipeline.php
 │   │   └── ClaudeCodePipeline.php
 │   ├── Support/
@@ -854,6 +889,15 @@ clave/
 │       └── Dto/
 │           ├── SessionContextTest.php
 │           └── ServiceConfigTest.php
+├── worker/                                  (Cloudflare Worker for install script)
+│   ├── src/
+│   │   └── index.ts
+│   ├── package.json
+│   └── wrangler.jsonc
+├── .github/
+│   └── workflows/
+│       └── release.yml
+├── box.json
 └── clave
 ```
 
@@ -866,19 +910,22 @@ clave/
 Proves the core lifecycle: boot a VM, get a Claude Code session, tear it down.
 
 1. Scaffold Laravel Zero project, install database/dotenv components
-2. `SessionContext`, `ServiceConfig`, and `OnExit` DTOs
-3. `TartManager` — clone, run, stop, delete, ip, exists, randomizeMac, rename, set
+2. `SessionContext`, `ServiceConfig`, `OnExit`, and `Recipe` DTOs
+3. `TartManager` — clone, run, stop, delete, ip, exists, randomizeMac, rename, set, waitForReady
 4. `SshExecutor` — run, interactive, tunnel, test (password auth via SSH_ASKPASS)
 5. `AuthManager` + `AuthCommand` — API key + OAuth support
 6. `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4/nginx/Node 22/Claude Code)
 7. `SessionPipeline` base class with progress tracking
-8. Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
+8. Preflight pipeline: `DetectRecipe → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
 9. Session pipeline: `CloneRepo → CloneVm → BootVm → RunClaudeCode`
-10. `SessionTeardown` — cleanup VM, worktree prompt, session record
+10. `SessionTeardown` — cleanup VM, clone prompt, session record (with progress bar)
 11. Signal handling via `$this->trap()` (SIGINT/SIGTERM)
 12. Sessions SQLite table + model
+13. Cloudflare Worker for install script distribution
+14. PHAR build config (`box.json`, `phpacker`)
+15. GitHub Actions release workflow
 
-**Milestone:** `clave` boots a VM from a Laravel project dir, you get a Claude Code prompt in a worktree, exiting shuts it all down.
+**Milestone:** `clave` boots a VM from a Laravel project dir, you get a Claude Code prompt in a cloned repo, exiting shuts it all down.
 
 ### Sprint 2 — Networking + Herd
 
@@ -890,6 +937,9 @@ Connect the VM to host services and expose the app.
 4. `ConfigureHerdProxy` step — `herd proxy` setup/teardown
 5. Port auto-assignment (scan 8081–8199)
 6. Host service connectivity check (warn if MySQL/Redis not reachable from VM)
+7. Add Composer to provisioning pipeline
+8. Add PHP-FPM pool configuration to provisioning pipeline
+9. Add Nginx Laravel site config to provisioning pipeline
 
 **Milestone:** App accessible at `https://project-a1b2.test`, database works against host MySQL.
 
@@ -897,7 +947,7 @@ Connect the VM to host services and expose the app.
 
 1. `SessionsCommand` and `CleanupCommand`
 2. `ConfigCommand`
-3. `GitManager` — verify merge and discard worktree flows end-to-end
+3. `GitManager` — verify merge and discard clone flows end-to-end
 4. `--resume` flag
 5. Error handling: composer failures, SSH timeouts, missing host services
 
@@ -905,11 +955,12 @@ Connect the VM to host services and expose the app.
 
 ### Sprint 4 — Distribution + Future
 
-1. Build PHAR: `php clave app:build`
-2. Per-project `.clave.json` config
-3. `clave provision --update`
-4. In-VM services mode (`services.mode: "vm"`)
-5. `clave exec` and `clave ssh` for running sessions
+1. ~~Build PHAR~~ (done — `phpacker` + `box.json`)
+2. ~~Install script~~ (done — Cloudflare Worker)
+3. Per-project `.clave.json` config
+4. `clave provision --update`
+5. In-VM services mode (`services.mode: "vm"`)
+6. `clave exec` and `clave ssh` for running sessions
 
 ---
 
@@ -920,3 +971,5 @@ Connect the VM to host services and expose the app.
 2. **`tart run` process management.** Need to verify `Process::start()` keeps the VM alive while the parent blocks on TTY. May need `nohup` with PID file as fallback.
 
 3. **Composer install on VirtioFS.** v0 runs directly on the mount. If too slow, install on VM local disk and symlink `vendor/` back.
+
+4. **Provisioning completeness.** The current provisioning pipeline installs PHP, nginx, Node, and Claude Code, but doesn't configure PHP-FPM pools, Composer, or an nginx site config. These are needed before Sprint 2's `BootstrapLaravel` step can work.
