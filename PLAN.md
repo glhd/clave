@@ -4,6 +4,50 @@ A Laravel Zero CLI that spins up ephemeral Ubuntu VMs via Tart for isolated Clau
 
 ---
 
+## Progress
+
+### Sprint 1 — Boot Loop
+- [x] Scaffold Laravel Zero project, install database/dotenv components
+- [x] `SessionContext` and `ServiceConfig` DTOs
+- [x] `OnExit` enum (keep/merge/discard) with `EnumHelpers` trait
+- [x] `TartManager` — clone, run, stop, delete, ip, exists, list, set, randomizeMac, rename
+- [x] `SshExecutor` — run, interactive, tunnel, test (password auth via SSH_ASKPASS)
+- [x] `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4, nginx, Node 22, Claude Code)
+- [x] `AuthManager` + `AuthCommand` — API key + OAuth token support with local storage
+- [x] Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
+- [x] Session pipeline: `CreateWorktree → CloneVm → BootVm → RunClaudeCode`
+- [x] `SessionTeardown` — VM stop/delete, worktree prompt, Herd unproxy, tunnel kill, session record cleanup
+- [x] Signal handling via `$this->trap()` (SIGINT/SIGTERM)
+- [x] Sessions SQLite table + `Session` model
+- [x] `SessionPipeline` base class with progress tracking via Laravel Prompts
+- [x] `Step` interface + `ProgressAware` interface + `AcceptsProgress` trait
+- [x] VirtioFS mount with retry logic and diagnostics
+
+### Sprint 2 — Networking + Herd
+- [ ] `DiscoverGateway` step — find NAT gateway IP inside VM
+- [ ] `BootstrapLaravel` step — symlink, .env patching, composer install, migrate
+- [ ] `CreateSshTunnel` step — port forwarding VM:80 → localhost:port
+- [ ] `ConfigureHerdProxy` step — `herd proxy` setup/teardown
+- [ ] Port auto-assignment (scan 8081–8199)
+- [ ] Host service connectivity check (warn if MySQL/Redis not reachable from VM)
+
+### Sprint 3 — Polish
+- [ ] `SessionsCommand` — list active sessions
+- [ ] `CleanupCommand` — remove orphaned VMs
+- [ ] `ConfigCommand` — manage per-user settings
+- [ ] `GitManager` merge flow verification (merge worktree back to base branch)
+- [ ] `--resume` flag for reconnecting to a running session
+- [ ] Error handling: composer failures, SSH timeouts, missing host services
+
+### Sprint 4 — Distribution + Future
+- [ ] Build PHAR: `php clave app:build`
+- [ ] Per-project `.clave.json` config
+- [ ] `clave provision --update`
+- [ ] In-VM services mode (`services.mode: "vm"`)
+- [ ] `clave exec` and `clave ssh` for running sessions
+
+---
+
 ## Core UX
 
 ```bash
@@ -22,8 +66,7 @@ clave
 # 9. On exit: tear down proxy, stop VM, delete clone, prompt about worktree
 ```
 
-Multiple simultaneous sessions work naturally — each `clave` invocation gets its own worktree, its own VM clone, and its own port. Run three terminals, run `clave` three times, get three isolated
-Claude Code agents working in parallel on different branches.
+Multiple simultaneous sessions work naturally — each `clave` invocation gets its own worktree, its own VM clone, and its own port. Run three terminals, run `clave` three times, get three isolated Claude Code agents working in parallel on different branches.
 
 ---
 
@@ -44,7 +87,7 @@ proxy:    my-app-a1b2.test     my-app-c3d4.test             my-app-e5f6.test
 │ Ubuntu VM       │  │ Ubuntu VM       │  │ Ubuntu VM       │
 │ nginx + php-fpm │  │ nginx + php-fpm │  │ nginx + php-fpm │
 │ Claude Code     │  │ Claude Code     │  │ Claude Code     │
-│ /project (vfs)  │  │ /project (vfs)  │  │ /project (vfs)  │
+│ /srv/project    │  │ /srv/project    │  │ /srv/project    │
 │       │         │  │       │         │  │       │         │
 │       ▼         │  │       ▼         │  │       ▼         │
 │ DB_HOST=gateway │  │ DB_HOST=gateway │  │ DB_HOST=gateway │
@@ -61,14 +104,11 @@ proxy:    my-app-a1b2.test     my-app-c3d4.test             my-app-e5f6.test
 
 ### Service Architecture (v0)
 
-For v0, **MySQL and Redis run on the host via Herd Pro.** Each VM connects to host services through the NAT gateway IP (typically `192.168.64.1`). This means all sessions share the same database and
-Redis instance — which is fine for most development workflows and avoids duplicating heavy services in every ephemeral VM.
+For v0, **MySQL and Redis run on the host via Herd Pro.** Each VM connects to host services through the NAT gateway IP (typically `192.168.64.1`). This means all sessions share the same database and Redis instance — which is fine for most development workflows and avoids duplicating heavy services in every ephemeral VM.
 
 The VM runs only nginx and PHP-FPM — just enough to serve the Laravel app and provide Claude Code a realistic execution environment for running artisan commands, tests, etc.
 
-> **Future: in-VM services.** The architecture is designed so that a future version can optionally provision MySQL and Redis inside the VM for full session isolation. This is controlled by the
-`ServiceConfig` DTO — swapping from `ServiceConfig::hostServices()` to `ServiceConfig::localServices()` is the only change needed in the pipeline. The provisioning pipeline would gain additional steps
-for MySQL/Redis, gated by a config flag.
+> **Future: in-VM services.** The architecture is designed so that a future version can optionally provision MySQL and Redis inside the VM for full session isolation. This is controlled by the `ServiceConfig` DTO — swapping from `ServiceConfig::hostServices()` to `ServiceConfig::localServices()` is the only change needed in the pipeline. The provisioning pipeline would gain additional steps for MySQL/Redis, gated by a config flag.
 
 ### Host Service Requirements
 
@@ -85,22 +125,21 @@ The NAT gateway IP is discovered by running `ip route | grep default` inside the
 
 A git repo is **required**. If the current directory is not inside a git repository, `clave` exits with an error.
 
-When `clave` starts, it creates a worktree so each session has an isolated copy of the codebase. Claude Code in session A can be refactoring the auth system while session B rewrites the billing
-module — no conflicts.
+When `clave` starts, it creates a worktree so each session has an isolated copy of the codebase. Claude Code in session A can be refactoring the auth system while session B rewrites the billing module — no conflicts.
 
 ```
 my-app/                          # main working copy (untouched)
-my-app/.clave/wt/s-a1b2/        # session A's worktree
-my-app/.clave/wt/s-c3d4/        # session B's worktree
+my-app/.clave/wt/s-a1b2c3d4/    # session A's worktree
+my-app/.clave/wt/s-e5f6g7h8/    # session B's worktree
 ```
 
 **Worktree lifecycle:**
 
-1. Generate a short session ID (first 4 chars of a UUID)
-2. Create a new branch: `clave/s-{id}` from current HEAD (or `--branch`)
+1. Generate a random 8-character session ID via `Str::random(8)`
+2. Create a new branch: `clave/s-{id}` from current HEAD
 3. `git worktree add .clave/wt/s-{id} clave/s-{id}`
-4. Mount `.clave/wt/s-{id}` into the VM via VirtioFS
-5. On session exit, prompt:
+4. Mount `.clave/wt/s-{id}` into the VM via VirtioFS at `/srv/project`
+5. On session exit, prompt (via Laravel Prompts `select()`):
     - **Keep** (default) — leave the worktree and branch for manual review
     - **Merge** — merge the session branch back to the original branch, remove worktree
     - **Discard** — remove worktree and delete branch
@@ -109,9 +148,48 @@ my-app/.clave/wt/s-c3d4/        # session B's worktree
 
 ---
 
-## Session Pipeline
+## Pipeline Architecture
 
-The session lifecycle is implemented as a Laravel pipeline. A `SessionContext` DTO is created at the start and flows through each stage, accumulating state. Each stage is responsible for one concern.
+The session lifecycle is split into two pipelines, both extending a `SessionPipeline` base class that provides progress tracking via Laravel Prompts. A `SessionContext` DTO flows through each stage, accumulating state. Each stage implements the `Step` interface and is responsible for one concern.
+
+### SessionPipeline Base Class
+
+```php
+abstract class SessionPipeline extends Pipeline
+{
+    abstract public function label(): string;
+    abstract public function steps(): array;
+
+    public function run(SessionContext $context): SessionContext
+    {
+        // Creates a progress bar, sends context through steps,
+        // injects ProgressAware trait for steps that need it,
+        // handles exceptions with progress bar cleanup
+    }
+}
+```
+
+### Step Interface + Progress Awareness
+
+```php
+interface Step
+{
+    public function handle(SessionContext $context, Closure $next): mixed;
+}
+
+interface ProgressAware
+{
+    public function setProgress(Progress $progress): void;
+}
+
+trait AcceptsProgress
+{
+    protected ?Progress $progress = null;
+
+    public function setProgress(Progress $progress): void { ... }
+    protected function hint(string $message): void { ... }
+}
+```
 
 ### SessionContext DTO
 
@@ -123,32 +201,39 @@ class SessionContext
         public readonly string $session_id,
         public readonly string $project_name,
         public readonly string $project_dir,
-        public readonly string $base_branch,
+        public readonly ?OnExit $on_exit = null,
+        public readonly ?Command $command = null,
 
         // Populated by pipeline stages
-        public ?string $worktree_path = null,
-        public ?string $session_branch = null,
+        public ?string $base_branch = null,
         public ?string $vm_name = null,
-        public ?int $vm_pid = null,
         public ?string $vm_ip = null,
-        public ?string $gateway_ip = null,
-        public ?int $host_port = null,
+        public ?string $worktree_path = null,
+        public ?string $worktree_branch = null,
         public ?string $proxy_name = null,
-        public ?object $tunnel_process = null,
-        public ?int $claude_exit_code = null,
-
-        // Options passed through from CLI
-        public ?string $prompt = null,
-        public ?string $branch_from = null,
-        public ?int $cpus = null,
-        public ?int $memory_mb = null,
-        public ?int $port = null,
-        public bool $skip_proxy = false,
-        public ?string $on_exit = null, // 'keep', 'merge', 'discard', or null (prompt)
-
-        // Service connection details (abstracted for future in-VM support)
+        public ?int $tunnel_port = null,
+        public ?InvokedProcess $tunnel_process = null,
         public ?ServiceConfig $services = null,
+        public ?Session $session = null,
     ) {}
+
+    public function info(string $message): void { ... }
+    public function warn(string $message): void { ... }
+    public function error(string $message): void { ... }
+    public function abort(string $message): never { ... }
+}
+```
+
+### OnExit Enum
+
+```php
+enum OnExit: string
+{
+    use EnumHelpers;
+
+    case Keep = 'keep';
+    case Merge = 'merge';
+    case Discard = 'discard';
 }
 ```
 
@@ -158,46 +243,14 @@ class SessionContext
 class ServiceConfig
 {
     public function __construct(
-        public readonly string $db_host,
-        public readonly int $db_port,
-        public readonly string $db_database,
-        public readonly string $db_username,
-        public readonly string $db_password,
+        public readonly string $mysql_host,
+        public readonly int $mysql_port,
         public readonly string $redis_host,
         public readonly int $redis_port,
     ) {}
 
-    /**
-     * v0: connect to host services via NAT gateway.
-     */
-    public static function hostServices(string $gateway_ip): static
-    {
-        return new static(
-            db_host: $gateway_ip,
-            db_port: 3306,
-            db_database: 'laravel',
-            db_username: 'root',
-            db_password: '',
-            redis_host: $gateway_ip,
-            redis_port: 6379,
-        );
-    }
-
-    /**
-     * Future: services running inside the VM.
-     */
-    public static function localServices(): static
-    {
-        return new static(
-            db_host: '127.0.0.1',
-            db_port: 3306,
-            db_database: 'laravel',
-            db_username: 'clave',
-            db_password: 'clave',
-            redis_host: '127.0.0.1',
-            redis_port: 6379,
-        );
-    }
+    public static function hostServices(string $gateway_ip): static { ... }
+    public static function localServices(): static { ... }
 }
 ```
 
@@ -206,90 +259,94 @@ class ServiceConfig
 ```php
 // In DefaultCommand::handle():
 
-$context = new SessionContext(
-    session_id: substr(Str::uuid()->toString(), 0, 4),
-    project_name: basename(getcwd()),
-    project_dir: getcwd(),
-    base_branch: $git->currentBranch(),
-    prompt: $this->argument('prompt'),
-    branch_from: $this->option('branch'),
-    cpus: $this->option('cpus') ? (int) $this->option('cpus') : null,
-    memory_mb: $this->option('memory') ? (int) $this->option('memory') : null,
-    port: $this->option('port') ? (int) $this->option('port') : null,
-    skip_proxy: (bool) $this->option('no-proxy'),
-    on_exit: match (true) {
-        (bool) $this->option('keep') => 'keep',
-        (bool) $this->option('discard') => 'discard',
-        default => null,
-    },
-);
+$context = $this->newContext();
 
+// Phase 1: Validate project, check auth, ensure VM exists
+$preflight->run($context);
+
+// Register cleanup on interrupt
+$this->trap([SIGINT, SIGTERM], function () use ($context, $teardown) {
+    $teardown->run($context);
+});
+
+// Phase 2: Create worktree, boot VM, run Claude
 try {
-    app(Pipeline::class)
-        ->send($context)
-        ->through([
-            CreateWorktree::class,
-            CloneVm::class,
-            BootVm::class,
-            DiscoverGateway::class,
-            CreateSshTunnel::class,
-            ConfigureHerdProxy::class,
-            BootstrapLaravel::class,
-            RunClaudeCode::class,
-        ])
-        ->then(fn (SessionContext $ctx) => $ctx);
+    $claude->run($context);
 } finally {
-    $teardown->teardown($context);
+    $teardown->run($context);
 }
 ```
 
-### Pipeline Stages
+### Preflight Pipeline
 
-Each stage implements Laravel's pipeline contract:
+Label: "Setting up project..."
+
+```
+ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession
+```
+
+1. **ValidateProject** — checks for `artisan` file, aborts if not a Laravel project
+2. **GetGitBranch** — verifies git repo, sets `context->base_branch`
+3. **EnsureVmExists** — checks for base VM, calls `ProvisionCommand` if missing
+4. **CheckClaudeAuthentication** — verifies auth via `AuthManager`, attempts setup if missing
+5. **SaveSession** — creates `Session` model record in SQLite
+
+### Claude Code Pipeline
+
+Label: "Starting session..."
+
+```
+CreateWorktree → CloneVm → BootVm → RunClaudeCode
+```
+
+Future stages to be inserted between `BootVm` and `RunClaudeCode`:
+```
+DiscoverGateway → CreateSshTunnel → ConfigureHerdProxy → BootstrapLaravel
+```
+
+#### CreateWorktree
 
 ```php
-class CreateWorktree
+class CreateWorktree implements Step, ProgressAware
 {
-    public function __construct(
-        protected GitManager $git,
-    ) {}
+    use AcceptsProgress;
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
         $branch = "clave/s-{$context->session_id}";
         $worktree_path = "{$context->project_dir}/.clave/wt/s-{$context->session_id}";
-        $base = $context->branch_from ?? $context->base_branch;
 
         $this->git->ensureIgnored($context->project_dir, '.clave/');
-        $this->git->createWorktree($worktree_path, $branch, $base);
+        $this->git->createWorktree($context->project_dir, $worktree_path, $branch);
 
         $context->worktree_path = $worktree_path;
-        $context->session_branch = $branch;
+        $context->worktree_branch = $branch;
 
         return $next($context);
     }
 }
 ```
 
+#### CloneVm
+
 ```php
-class CloneVm
+class CloneVm implements Step, ProgressAware
 {
-    public function __construct(
-        protected TartManager $tart,
-    ) {}
+    use AcceptsProgress;
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
         $vm_name = "clave-{$context->session_id}";
 
-        $this->tart->clone('clave-base', $vm_name);
+        $this->tart->clone(config('clave.base_vm'), $vm_name);
+        $this->tart->randomizeMac($vm_name);
 
-        if ($context->cpus) {
-            $this->tart->set($vm_name, cpus: $context->cpus);
-        }
-        if ($context->memory_mb) {
-            $this->tart->set($vm_name, memory_mb: $context->memory_mb);
-        }
+        // Apply per-session overrides from config
+        $this->tart->set($vm_name,
+            cpus: config('clave.vm.cpus'),
+            memory: config('clave.vm.memory'),
+            display: config('clave.vm.display'),
+        );
 
         $context->vm_name = $vm_name;
 
@@ -298,13 +355,12 @@ class CloneVm
 }
 ```
 
+#### BootVm
+
 ```php
-class BootVm
+class BootVm implements Step, ProgressAware
 {
-    public function __construct(
-        protected TartManager $tart,
-        protected SshExecutor $ssh,
-    ) {}
+    use AcceptsProgress;
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
@@ -314,105 +370,86 @@ class BootVm
             'project' => $mount_path,
         ]);
 
-        $this->ssh->usePassword(config('clave.ssh.password'));
-
-        $ip = $this->tart->ip($context->vm_name, timeout: 90);
-        $context->vm_ip = $ip;
-        $this->ssh->setHost($ip);
-
-        // Wait for SSH with per-attempt feedback
-        $this->waitForSsh($context);
-
-        $this->ssh->run('sudo mount -a');
-
-        return $next($context);
-    }
-}
-```
-
-```php
-class DiscoverGateway
-{
-    public function __construct(
-        protected SshExecutor $ssh,
-    ) {}
-
-    public function handle(SessionContext $context, Closure $next): mixed
-    {
+        // Wait for IP (timeout: 90s)
+        $context->vm_ip = $this->tart->ip($context->vm_name, timeout: 90);
         $this->ssh->setHost($context->vm_ip);
 
-        $result = $this->ssh->run("ip route | grep default | awk '{print \$3}'");
-        $gateway_ip = trim($result->output());
+        // Wait for SSH (timeout: 90s)
+        $this->ssh->usePassword(config('clave.ssh.password'));
+        // Polls ssh->test() with retry
 
-        if (empty($gateway_ip)) {
-            throw new RuntimeException('Could not discover NAT gateway IP');
-        }
-
-        $context->gateway_ip = $gateway_ip;
-        $context->services = ServiceConfig::hostServices($gateway_ip);
+        // Mount VirtioFS with retry logic (timeout: 30s)
+        // Falls back to detailed diagnostics on failure
+        $this->ssh->run('sudo mount -t virtiofs com.apple.virtio-fs.automount /srv/project');
 
         return $next($context);
     }
 }
 ```
 
+#### RunClaudeCode
+
 ```php
-class CreateSshTunnel
+class RunClaudeCode implements Step, ProgressAware
 {
-    public function __construct(
-        protected SshExecutor $ssh,
-    ) {}
+    use AcceptsProgress;
 
     public function handle(SessionContext $context, Closure $next): mixed
     {
-        $host_port = $context->port ?? $this->findAvailablePort(8081, 8199);
-        $context->host_port = $host_port;
+        // Resolve auth (API key or OAuth token) via AuthManager
+        // If OAuth, write credentials to ~/.claude/.credentials.json on VM
+        // Write settings to ~/.claude.json and ~/.claude/settings.json
 
-        $context->tunnel_process = $this->ssh->tunnel(
-            host: $context->vm_ip,
-            local_port: $host_port,
-            remote_port: 80,
+        // Finish progress bar before interactive session
+        $this->progress->finish();
+
+        $this->ssh->interactive(
+            'cd /srv/project && [ENV] claude --dangerously-skip-permissions'
         );
 
         return $next($context);
     }
+}
+```
 
-    protected function findAvailablePort(int $start, int $end): int
+#### Future Steps (Sprint 2)
+
+```php
+class DiscoverGateway implements Step, ProgressAware
+{
+    public function handle(SessionContext $context, Closure $next): mixed
     {
-        for ($port = $start; $port <= $end; $port++) {
-            $conn = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
-            if (! $conn) {
-                return $port;
-            }
-            fclose($conn);
-        }
+        $result = $this->ssh->run("ip route | grep default | awk '{print \$3}'");
+        $context->gateway_ip = trim($result->output());
+        $context->services = ServiceConfig::hostServices($context->gateway_ip);
 
-        throw new RuntimeException("No available ports in range {$start}-{$end}");
+        return $next($context);
     }
 }
 ```
 
 ```php
-class ConfigureHerdProxy
+class CreateSshTunnel implements Step, ProgressAware
 {
-    public function __construct(
-        protected HerdManager $herd,
-    ) {}
-
     public function handle(SessionContext $context, Closure $next): mixed
     {
-        if ($context->skip_proxy) {
-            return $next($context);
-        }
+        $host_port = $this->findAvailablePort(8081, 8199);
+        $context->tunnel_port = $host_port;
+        $context->tunnel_process = $this->ssh->tunnel($host_port, $context->vm_ip, 80);
 
+        return $next($context);
+    }
+}
+```
+
+```php
+class ConfigureHerdProxy implements Step, ProgressAware
+{
+    public function handle(SessionContext $context, Closure $next): mixed
+    {
         $proxy_name = "{$context->project_name}-{$context->session_id}";
         $context->proxy_name = $proxy_name;
-
-        $this->herd->proxy(
-            $proxy_name,
-            "http://127.0.0.1:{$context->host_port}",
-            secure: true,
-        );
+        $this->herd->proxy($proxy_name, "http://127.0.0.1:{$context->tunnel_port}", secure: true);
 
         return $next($context);
     }
@@ -420,115 +457,15 @@ class ConfigureHerdProxy
 ```
 
 ```php
-class BootstrapLaravel
+class BootstrapLaravel implements Step, ProgressAware
 {
-    public function __construct(
-        protected SshExecutor $ssh,
-    ) {}
-
     public function handle(SessionContext $context, Closure $next): mixed
     {
-        $this->ssh->setHost($context->vm_ip);
-        $guest_project = '/mnt/project';
-
         // Symlink VirtioFS mount to where nginx expects it
-        $this->ssh->run("sudo ln -sfn {$guest_project} /var/www/current");
-
-        // Set up .env with host service connections
-        $this->configureEnv($context, $guest_project);
-
-        // Install dependencies
-        $this->ssh->run(
-            "cd /var/www/current && sudo -u www-data composer install --no-interaction 2>&1",
-            timeout: 300,
-        );
-
-        // Laravel bootstrap
-        $this->ssh->run(
-            "cd /var/www/current && sudo -u www-data php artisan migrate --force 2>&1",
-            timeout: 120,
-        );
-
-        // Restart services
-        $this->ssh->run("sudo systemctl restart php8.3-fpm nginx");
-
-        return $next($context);
-    }
-
-    protected function configureEnv(SessionContext $context, string $guest_project): void
-    {
-        $services = $context->services;
-
-        // Copy .env.example if no .env exists
-        $this->ssh->run(
-            "test -f {$guest_project}/.env || cp {$guest_project}/.env.example {$guest_project}/.env"
-        );
-
-        // Generate app key if placeholder
-        $this->ssh->run(
-            "cd {$guest_project} && grep -q '^APP_KEY=$' .env && sudo -u www-data php artisan key:generate"
-        );
-
-        // Patch service connections to point at host
-        $env_overrides = [
-            'DB_HOST' => $services->db_host,
-            'DB_PORT' => $services->db_port,
-            'DB_DATABASE' => $services->db_database,
-            'DB_USERNAME' => $services->db_username,
-            'DB_PASSWORD' => $services->db_password,
-            'REDIS_HOST' => $services->redis_host,
-            'REDIS_PORT' => $services->redis_port,
-            'CACHE_STORE' => 'redis',
-            'SESSION_DRIVER' => 'redis',
-            'QUEUE_CONNECTION' => 'sync',
-            'MAIL_MAILER' => 'log',
-        ];
-
-        foreach ($env_overrides as $key => $value) {
-            $this->ssh->run(
-                "cd {$guest_project} && " .
-                "grep -q '^{$key}=' .env " .
-                "&& sed -i 's/^{$key}=.*/{$key}={$value}/' .env " .
-                "|| echo '{$key}={$value}' >> .env"
-            );
-        }
-    }
-}
-```
-
-```php
-class RunClaudeCode
-{
-    public function __construct(
-        protected SshExecutor $ssh,
-    ) {}
-
-    public function handle(SessionContext $context, Closure $next): mixed
-    {
-        $this->ssh->setHost($context->vm_ip);
-        $api_key = config('clave.anthropic_api_key') ?? env('ANTHROPIC_API_KEY');
-
-        // Print access info before starting session
-        $url = $context->proxy_name
-            ? "https://{$context->proxy_name}.test"
-            : "http://127.0.0.1:{$context->host_port}";
-
-        app('writer')->writeln('');
-        app('writer')->writeln("  ✓ App running at {$url}");
-        app('writer')->writeln("  ✓ VM: {$context->vm_ip} | Port: {$context->host_port}");
-        app('writer')->writeln("  ✓ Session: {$context->session_id} | Branch: {$context->session_branch}");
-        app('writer')->writeln('');
-
-        $claude_cmd = implode(' ', array_filter([
-            'cd /var/www/current',
-            '&&',
-            "ANTHROPIC_API_KEY={$api_key}",
-            'claude',
-            $context->prompt ? '-p ' . escapeshellarg($context->prompt) : null,
-            '--dangerously-skip-permissions',
-        ]));
-
-        $context->claude_exit_code = $this->ssh->interactive($claude_cmd);
+        // Configure .env with host service connections
+        // composer install
+        // php artisan migrate --force
+        // Restart php-fpm + nginx
 
         return $next($context);
     }
@@ -539,70 +476,44 @@ class RunClaudeCode
 
 ## Session Teardown
 
-Cleanup runs after the pipeline completes (or on failure/interrupt via signal handler). Each step is wrapped in `rescue()` so a failure in one doesn't prevent the others.
+Cleanup runs after the pipeline completes (or on interrupt via signal handler). Each step is guarded by null checks and wrapped in `rescue()` so a failure in one doesn't prevent the others. A `$completed` flag prevents double execution.
 
 ```php
 class SessionTeardown
 {
-    public function __construct(
-        protected TartManager $tart,
-        protected HerdManager $herd,
-        protected GitManager $git,
-    ) {}
+    protected bool $completed = false;
 
-    public function teardown(SessionContext $context, ?Command $command = null): void
+    public function run(SessionContext $context): void
     {
-        // Remove Herd proxy
-        if ($context->proxy_name) {
-            rescue(fn () => $this->herd->unproxy($context->proxy_name));
+        if ($this->completed) {
+            return;
         }
 
-        // Kill SSH tunnel
-        if ($context->tunnel_process) {
-            rescue(fn () => Process::run("kill {$context->tunnel_process->id()}"));
-        }
+        $this->completed = true;
 
-        // Stop and delete VM
-        if ($context->vm_name) {
-            rescue(fn () => $this->tart->stop($context->vm_name));
-            rescue(fn () => $this->tart->delete($context->vm_name));
-        }
-
-        // Handle worktree
-        if ($context->worktree_path && $context->session_branch) {
-            $this->handleWorktree($context, $command);
-        }
-
-        // Remove session record
-        SessionModel::where('session_id', $context->session_id)->delete();
+        $this->unproxy($context);       // Remove Herd proxy if set
+        $this->killTunnel($context);     // Stop SSH tunnel if running
+        $this->stopVm($context);         // tart stop
+        $this->deleteVm($context);       // tart delete
+        $this->handleWorktree($context); // Prompt: keep/merge/discard
+        $this->deleteSession($context);  // Remove Session record
     }
 
-    protected function handleWorktree(SessionContext $context, ?Command $command): void
+    protected function handleWorktree(SessionContext $context): void
     {
-        if ($context->on_exit) {
-            $action = $context->on_exit;
-        } elseif ($command) {
-            $action = $command->choice(
-                "Session branch {$context->session_branch}",
-                ['keep', 'merge', 'discard'],
-                'keep',
-            );
-        } else {
-            $action = 'keep'; // fallback if no interactive prompt available
-        }
+        $action = $context->on_exit;
+
+        // If no pre-selected action, prompt user via Laravel Prompts
+        $action ??= OnExit::coerce(select(
+            label: 'What would you like to do with the worktree?',
+            options: OnExit::toSelectArray(),
+            default: OnExit::Keep->value,
+        ));
 
         match ($action) {
-            'merge' => $this->git->mergeAndCleanWorktree(
-                $context->worktree_path,
-                $context->session_branch,
-                $context->base_branch,
-            ),
-            'discard' => $this->git->removeWorktree(
-                $context->worktree_path,
-                $context->session_branch,
-                force: true,
-            ),
-            'keep' => null, // leave it alone
+            OnExit::Merge => $this->git->mergeAndCleanWorktree(...),
+            OnExit::Discard => $this->git->removeWorktree(...),
+            default => null, // keep
         };
     }
 }
@@ -617,169 +528,86 @@ class SessionTeardown
 ```php
 class DefaultCommand extends Command
 {
-    protected $signature = 'clave
-        {prompt? : One-shot prompt for Claude Code}
-        {--branch= : Base the worktree on a specific branch}
-        {--port= : Specify host port (default: auto-assign)}
-        {--cpus= : Override CPU count for this session}
-        {--memory= : Override memory in MB for this session}
-        {--no-proxy : Skip Herd proxy setup}
-        {--keep : Keep worktree on exit without prompting}
-        {--discard : Discard worktree on exit without prompting}';
+    protected $signature = 'default {--on-exit= : Action on exit: keep, merge, discard}';
 
     public function handle(
-        TartManager $tart,
-        GitManager $git,
+        PreflightPipeline $preflight,
+        ClaudeCodePipeline $claude,
         SessionTeardown $teardown,
     ): int {
-        // Preflight checks
-        if (! file_exists(getcwd() . '/artisan')) {
-            $this->error('Not a Laravel project (no artisan file found).');
-            return 1;
-        }
+        clear();
+        $this->callSilently('migrate', ['--force' => true]);
 
-        if (! $git->isRepo(getcwd())) {
-            $this->error('Not a git repository. Clave requires git for worktree isolation.');
-            return 1;
-        }
-
-        if (! $tart->exists('clave-base')) {
-            $this->info('No base image found. Running initial provisioning...');
-            $this->call('provision');
-        }
-
-        // Build context DTO
         $context = new SessionContext(
-            session_id: substr(Str::uuid()->toString(), 0, 4),
+            session_id: Str::random(8),
             project_name: basename(getcwd()),
             project_dir: getcwd(),
-            base_branch: $git->currentBranch(),
-            prompt: $this->argument('prompt'),
-            branch_from: $this->option('branch'),
-            cpus: $this->option('cpus') ? (int) $this->option('cpus') : null,
-            memory_mb: $this->option('memory') ? (int) $this->option('memory') : null,
-            port: $this->option('port') ? (int) $this->option('port') : null,
-            skip_proxy: (bool) $this->option('no-proxy'),
-            on_exit: match (true) {
-                (bool) $this->option('keep') => 'keep',
-                (bool) $this->option('discard') => 'discard',
-                default => null,
-            },
+            on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
+            command: $this,
         );
 
-        // Register cleanup on interrupt
-        $this->registerSignalHandlers($context, $teardown);
+        $preflight->run($context);
 
-        // Track session
-        SessionModel::create([
-            'session_id' => $context->session_id,
-            'project_dir' => $context->project_dir,
-            'started_at' => now(),
-        ]);
+        $this->trap([SIGINT, SIGTERM], function () use ($context, $teardown) {
+            $teardown->run($context);
+        });
 
         try {
-            app(Pipeline::class)
-                ->send($context)
-                ->through([
-                    CreateWorktree::class,
-                    CloneVm::class,
-                    BootVm::class,
-                    DiscoverGateway::class,
-                    CreateSshTunnel::class,
-                    ConfigureHerdProxy::class,
-                    BootstrapLaravel::class,
-                    RunClaudeCode::class,
-                ])
-                ->then(fn (SessionContext $ctx) => $ctx);
+            $claude->run($context);
         } finally {
-            $teardown->teardown($context, $this);
+            $teardown->run($context);
         }
 
-        return $context->claude_exit_code ?? 0;
-    }
-
-    protected function registerSignalHandlers(SessionContext $context, SessionTeardown $teardown): void
-    {
-        $handler = function () use ($context, $teardown) {
-            $this->newLine();
-            $this->info('Interrupted — cleaning up...');
-            $teardown->teardown($context);
-            exit(130);
-        };
-
-        pcntl_signal(SIGINT, $handler);
-        pcntl_signal(SIGTERM, $handler);
+        return self::SUCCESS;
     }
 }
 ```
 
 ### `clave provision`
 
-Builds or rebuilds the base VM image.
+Builds or rebuilds the base VM image. Generates a provisioning bash script via `ProvisioningPipeline::toScript()`, mounts it into the VM via VirtioFS, and executes it.
 
 ```php
 class ProvisionCommand extends Command
 {
     protected $signature = 'provision
-        {--force : Rebuild even if base image exists}
-        {--image= : Override base OCI image}';
+        {--force : Re-provision}
+        {--image= : OCI image to pull}';
 
     public function handle(TartManager $tart, SshExecutor $ssh): int
     {
-        $base_image = $this->option('image') ?? config('clave.vm.base_image');
-
-        if ($tart->exists('clave-base') && ! $this->option('force')) {
-            $this->info('Base image already exists. Use --force to rebuild.');
-            return 0;
-        }
-
-        if ($tart->exists('clave-base')) {
-            $tart->delete('clave-base');
-        }
-
-        $this->info("Pulling {$base_image}...");
-        $tart->clone($base_image, 'clave-base');
-        $tart->set('clave-base',
-            cpus: config('clave.vm.cpus', 4),
-            memory_mb: config('clave.vm.memory_mb', 8192),
-            disk_gb: config('clave.vm.disk_gb', 32),
-        );
-
-        // Boot for provisioning (no directory mounts needed)
-        $vm_process = $tart->runBackground('clave-base', []);
-        $vm_ip = $tart->waitForReady('clave-base', timeout_seconds: 120);
-
-        $ssh->setHost($vm_ip);
-
-        foreach (ProvisioningPipeline::steps() as $step) {
-            $this->info("  → {$step['name']}...");
-
-            if ($ssh->test($step['test'])) {
-                $this->comment("    (skipped)");
-                continue;
-            }
-
-            foreach ($step['commands'] as $command) {
-                $result = $ssh->run($command, timeout: 300);
-                if (! $result->successful()) {
-                    $this->error("    Failed: {$result->errorOutput()}");
-                    $tart->stop('clave-base');
-                    return 1;
-                }
-            }
-
-            $this->info("    ✓");
-        }
-
-        $tart->stop('clave-base');
-        $this->info('Base image provisioned successfully.');
-
-        return 0;
+        // Clone OCI image to temp VM name
+        // Configure VM (CPUs, memory, display)
+        // Write provisioning script to temp dir
+        // Mount script dir via VirtioFS
+        // Boot VM, wait for SSH
+        // Execute provisioning script
+        // Stop VM, rename to base VM name
     }
 }
 ```
 
-### `clave sessions`
+### `clave auth`
+
+Manages Claude Code authentication (API key or OAuth token).
+
+```php
+class AuthCommand extends Command
+{
+    protected $signature = 'auth
+        {--status : Show auth method}
+        {--clear : Remove stored token}';
+
+    public function handle(AuthManager $auth): int
+    {
+        // --status: Show current auth method and source
+        // --clear: Remove stored token
+        // default: Run `claude setup-token` and store OAuth token
+    }
+}
+```
+
+### `clave sessions` (not yet implemented)
 
 ```php
 class SessionsCommand extends Command
@@ -788,31 +616,23 @@ class SessionsCommand extends Command
 
     public function handle(): int
     {
-        $sessions = SessionModel::all();
-
-        if ($sessions->isEmpty()) {
-            $this->info('No active sessions.');
-            return 0;
-        }
+        $sessions = Session::all();
 
         $this->table(
-            ['ID', 'Project', 'Branch', 'Port', 'URL', 'Started'],
+            ['ID', 'Project', 'Branch', 'VM', 'Started'],
             $sessions->map(fn ($s) => [
                 $s->session_id,
-                basename($s->project_dir),
+                $s->project_name,
                 $s->branch ?? '-',
-                $s->port ?? '-',
-                $s->proxy_name ? "https://{$s->proxy_name}.test" : '-',
+                $s->vm_name ?? '-',
                 $s->started_at?->diffForHumans() ?? '-',
             ]),
         );
-
-        return 0;
     }
 }
 ```
 
-### `clave cleanup`
+### `clave cleanup` (not yet implemented)
 
 ```php
 class CleanupCommand extends Command
@@ -821,44 +641,9 @@ class CleanupCommand extends Command
 
     public function handle(TartManager $tart): int
     {
-        $dry_run = $this->option('dry-run');
-        $cleaned = 0;
-
-        $vms = $tart->list()->filter(
-            fn ($vm) => str_starts_with($vm['Name'], 'clave-') && $vm['Name'] !== 'clave-base'
-        );
-
-        foreach ($vms as $vm) {
-            $session_id = Str::after($vm['Name'], 'clave-');
-            $session = SessionModel::where('session_id', $session_id)->first();
-
-            $is_orphan = ! $session || ! $this->isProcessRunning($session->pid);
-
-            if ($is_orphan) {
-                $label = $dry_run ? 'Would remove' : 'Removing';
-                $this->line("{$label} VM: {$vm['Name']}");
-
-                if (! $dry_run) {
-                    rescue(fn () => $tart->stop($vm['Name']));
-                    rescue(fn () => $tart->delete($vm['Name']));
-                    $session?->delete();
-                }
-                $cleaned++;
-            }
-        }
-
-        $verb = $dry_run ? 'would be cleaned' : 'cleaned';
-        $this->info("{$cleaned} resources {$verb}.");
-
-        return 0;
-    }
-
-    protected function isProcessRunning(?int $pid): bool
-    {
-        if (! $pid) {
-            return false;
-        }
-        return Process::run("kill -0 {$pid} 2>/dev/null")->successful();
+        // Find VMs named clave-* (excluding clave-base)
+        // Check if they have a matching active session
+        // Remove orphaned VMs and stale session records
     }
 }
 ```
@@ -869,172 +654,18 @@ class CleanupCommand extends Command
 
 The base image provisioning installs everything needed so per-session boot is fast. The VM runs **nginx and PHP-FPM only** — no MySQL or Redis (v0 uses host services).
 
-```php
-class ProvisioningPipeline
-{
-    public static function steps(): array
-    {
-        return [
-            static::baseSystem(),
-            static::php(),
-            static::nginx(),
-            static::node(),
-            static::claudeCode(),
-            static::laravelDirectories(),
-            static::virtiofsMounts(),
-        ];
-    }
+`ProvisioningPipeline` generates a self-contained bash script via `toScript()` which is mounted into the VM and executed. This is faster than step-by-step SSH execution.
 
-    protected static function baseSystem(): array
-    {
-        return [
-            'name' => 'Base system packages',
-            'test' => 'dpkg -l git curl wget unzip 2>/dev/null | grep -c "^ii" | grep -q 4',
-            'commands' => [
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get update',
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y',
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git curl wget unzip software-properties-common',
-                'sudo timedatectl set-timezone UTC',
-            ],
-        ];
-    }
-
-    protected static function php(): array
-    {
-        return [
-            'name' => 'PHP 8.3 + extensions',
-            'test' => 'php -v 2>/dev/null | grep -q "8.3"',
-            'commands' => [
-                'sudo add-apt-repository -y ppa:ondrej/php',
-                'sudo apt-get update',
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ' .
-                    'php8.3 php8.3-fpm php8.3-opcache php8.3-mysql php8.3-mbstring ' .
-                    'php8.3-bcmath php8.3-xml php8.3-gd php8.3-intl php8.3-zip ' .
-                    'php8.3-imagick php8.3-redis php8.3-curl php8.3-gmp',
-                'sudo tee /etc/php/8.3/fpm/pool.d/www.conf > /dev/null << \'POOL\'
-[www]
-user = www-data
-group = www-data
-listen = /run/php/php8.3-fpm.sock
-listen.owner = www-data
-listen.group = www-data
-pm = dynamic
-pm.max_children = 10
-pm.start_servers = 3
-pm.min_spare_servers = 2
-pm.max_spare_servers = 5
-pm.max_requests = 500
-POOL',
-                'sudo sed -i "s/^upload_max_filesize.*/upload_max_filesize = 20M/" /etc/php/8.3/fpm/php.ini',
-                'sudo sed -i "s/^post_max_size.*/post_max_size = 20M/" /etc/php/8.3/fpm/php.ini',
-                'sudo systemctl enable php8.3-fpm',
-                'curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer',
-            ],
-        ];
-    }
-
-    protected static function nginx(): array
-    {
-        return [
-            'name' => 'Nginx',
-            'test' => 'nginx -v 2>&1 | grep -q nginx',
-            'commands' => [
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nginx',
-                'echo "upstream php-fpm { server unix:/run/php/php8.3-fpm.sock; }" | sudo tee /etc/nginx/conf.d/php-fpm.conf',
-                'sudo tee /etc/nginx/conf.d/gzip.conf > /dev/null << \'GZIP\'
-gzip_comp_level 5;
-gzip_min_length 256;
-gzip_proxied any;
-gzip_vary on;
-gzip_types application/javascript application/json text/css text/plain image/svg+xml;
-GZIP',
-                'echo "server_tokens off;" | sudo tee /etc/nginx/conf.d/security.conf',
-                'sudo tee /etc/nginx/sites-available/laravel > /dev/null << \'SITE\'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
-    index index.php;
-    root /var/www/current/public;
-    charset utf-8;
-    client_max_body_size 20M;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location = /favicon.ico { access_log off; log_not_found off; }
-    location = /robots.txt  { access_log off; log_not_found off; }
-
-    location ~ \\.php$ {
-        fastcgi_intercept_errors off;
-        fastcgi_split_path_info ^(.+\\.php)(/.+)$;
-        fastcgi_pass php-fpm;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO $fastcgi_path_info;
-        include fastcgi_params;
-    }
-
-    location ~ /\\.(?!well-known).* { deny all; }
-}
-SITE',
-                'sudo rm -f /etc/nginx/sites-enabled/default',
-                'sudo ln -sf /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/laravel',
-                'sudo systemctl enable nginx',
-            ],
-        ];
-    }
-
-    protected static function node(): array
-    {
-        return [
-            'name' => 'Node.js + npm',
-            'test' => 'node --version 2>/dev/null | grep -q v',
-            'commands' => [
-                'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm',
-            ],
-        ];
-    }
-
-    protected static function claudeCode(): array
-    {
-        return [
-            'name' => 'Claude Code',
-            'test' => 'claude --version 2>/dev/null',
-            'commands' => [
-                'sudo npm install -g @anthropic-ai/claude-code',
-            ],
-        ];
-    }
-
-    protected static function laravelDirectories(): array
-    {
-        return [
-            'name' => 'Laravel directory structure',
-            'test' => 'test -d /var/www/storage',
-            'commands' => [
-                'sudo mkdir -p /var/www/storage/{app/public,framework/{cache/data,sessions,views},logs}',
-                'sudo touch /var/www/storage/logs/laravel.log',
-                'sudo chown -R www-data:www-data /var/www',
-                'sudo chmod -R 0775 /var/www/storage',
-            ],
-        ];
-    }
-
-    protected static function virtiofsMounts(): array
-    {
-        return [
-            'name' => 'VirtioFS mount point',
-            'test' => 'test -d /mnt/project',
-            'commands' => [
-                'sudo mkdir -p /mnt/project',
-                'grep -q "project" /etc/fstab || echo "project /mnt/project virtiofs rw,nofail 0 0" | sudo tee -a /etc/fstab',
-            ],
-        ];
-    }
-
-}
-```
+**Provisioned software:**
+- Base system packages (git, curl, wget, unzip)
+- PHP 8.4 + extensions (curl, mbstring, xml, mysql, redis, sqlite3, bcmath, gd, intl)
+- PHP-FPM pool configuration
+- Composer
+- Nginx with Laravel site config
+- Node.js 22 (via NodeSource)
+- Claude Code CLI (`@anthropic-ai/claude-code`)
+- Laravel directories (`/srv/project`)
+- VirtioFS fstab entry (`com.apple.virtio-fs.automount /srv/project virtiofs`)
 
 ---
 
@@ -1045,89 +676,17 @@ SITE',
 ```php
 class TartManager
 {
-    public function clone(string $source, string $target): void
-    {
-        Process::run("tart clone {$source} {$target}")->throw();
-    }
-
-    public function runBackground(string $name, array $dirs): InvokedProcess
-    {
-        $dir_flags = collect($dirs)
-            ->map(fn ($path, $label) => "--dir={$label}:{$path}")
-            ->implode(' ');
-
-        return Process::start("tart run {$name} --no-graphics {$dir_flags}");
-    }
-
-    public function stop(string $name): void
-    {
-        Process::run("tart stop {$name}");
-    }
-
-    public function delete(string $name): void
-    {
-        Process::run("tart delete {$name}");
-    }
-
-    public function ip(string $name): ?string
-    {
-        $result = Process::run("tart ip {$name}");
-        return $result->successful() ? trim($result->output()) : null;
-    }
-
-    public function exists(string $name): bool
-    {
-        $result = Process::run('tart list --format json');
-        if (! $result->successful()) {
-            return false;
-        }
-        $vms = json_decode($result->output(), true) ?? [];
-        return collect($vms)->contains(fn ($vm) => $vm['Name'] === $name);
-    }
-
-    public function list(): Collection
-    {
-        $result = Process::run('tart list --format json');
-        return collect(json_decode($result->output(), true) ?? []);
-    }
-
-    public function set(string $name, ?int $cpus = null, ?int $memory_mb = null, ?int $disk_gb = null): void
-    {
-        $flags = collect([
-            $cpus ? "--cpu {$cpus}" : null,
-            $memory_mb ? "--memory {$memory_mb}" : null,
-            $disk_gb ? "--disk-size {$disk_gb}" : null,
-        ])->filter()->implode(' ');
-
-        if ($flags) {
-            Process::run("tart set {$name} {$flags}")->throw();
-        }
-    }
-
-    public function waitForReady(string $name, int $timeout_seconds = 120): string
-    {
-        $start = time();
-
-        while (time() - $start < $timeout_seconds) {
-            $ip = $this->ip($name);
-            if ($ip && $this->isSshReady($ip)) {
-                return $ip;
-            }
-            sleep(2);
-        }
-
-        throw new RuntimeException("VM {$name} did not become ready within {$timeout_seconds}s");
-    }
-
-    protected function isSshReady(string $ip): bool
-    {
-        $conn = @fsockopen($ip, 22, $errno, $errstr, 2);
-        if ($conn) {
-            fclose($conn);
-            return true;
-        }
-        return false;
-    }
+    public function clone(string $source, string $name): void;
+    public function runBackground(string $name, array $dirs, bool $no_graphics = true): mixed;
+    public function stop(string $name): void;
+    public function delete(string $name): void;
+    public function ip(string $name, int $timeout = 0): ?string;
+    public function exists(string $name): bool;
+    public function list(): Collection;
+    public function set(string $name, ?int $cpus, ?int $memory, ?string $display): void;
+    public function randomizeMac(string $name): void;
+    public function rename(string $old_name, string $new_name): void;
+    public function waitForReady(string $name, SshExecutor $ssh, int $timeout): string;
 }
 ```
 
@@ -1136,61 +695,12 @@ class TartManager
 ```php
 class GitManager
 {
-    public function isRepo(string $path): bool
-    {
-        return Process::path($path)->run('git rev-parse --git-dir')->successful();
-    }
-
-    public function currentBranch(): string
-    {
-        return trim(Process::run('git branch --show-current')->output());
-    }
-
-    public function createWorktree(string $path, string $branch, string $base_branch): void
-    {
-        Process::run("git worktree add -b {$branch} {$path} {$base_branch}")->throw();
-    }
-
-    public function removeWorktree(string $path, string $branch, bool $force = false): void
-    {
-        $force_flag = $force ? '--force' : '';
-        Process::run("git worktree remove {$force_flag} {$path}");
-        Process::run("git branch -D {$branch}");
-    }
-
-    public function mergeAndCleanWorktree(string $path, string $branch, string $target_branch): void
-    {
-        Process::run("git merge {$branch} --no-edit")->throw();
-        $this->removeWorktree($path, $branch, force: true);
-    }
-
-    public function ensureIgnored(string $project_dir, string $pattern): void
-    {
-        $gitignore_path = "{$project_dir}/.gitignore";
-        $contents = file_exists($gitignore_path) ? file_get_contents($gitignore_path) : '';
-
-        if (! str_contains($contents, $pattern)) {
-            file_put_contents($gitignore_path, rtrim($contents) . "\n{$pattern}\n");
-        }
-    }
-}
-```
-
-### HerdManager
-
-```php
-class HerdManager
-{
-    public function proxy(string $name, string $target, bool $secure = true): void
-    {
-        $flags = $secure ? '--secure' : '';
-        Process::run("herd proxy {$name} {$target} {$flags}")->throw();
-    }
-
-    public function unproxy(string $name): void
-    {
-        Process::run("herd unproxy {$name}");
-    }
+    public function isRepo(string $path): bool;
+    public function currentBranch(string $path): string;
+    public function createWorktree(string $repo_path, string $worktree_path, string $branch): void;
+    public function removeWorktree(string $repo_path, string $worktree_path): void;
+    public function mergeAndCleanWorktree(string $repo_path, string $worktree_path, string $branch, string $target): void;
+    public function ensureIgnored(string $repo_path, string $pattern): void;
 }
 ```
 
@@ -1201,28 +711,38 @@ Uses password auth via `SSH_ASKPASS` for all VM connections. VMs are ephemeral a
 ```php
 class SshExecutor
 {
-    protected string $user;
-    protected int $port;
-    protected array $options;
-    protected ?string $host = null;
-    protected ?string $password = null;
-    protected ?string $askpass_path = null;
-    protected ?string $last_error = null;
+    public function setHost(string $host): self;
+    public function usePassword(string $password): self;
+    public function run(string $command, int $timeout = 60): mixed;
+    public function interactive(string $command): int;
+    public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed;
+    public function test(): bool;
+    public function lastError(): ?string;
+}
+```
 
-    public function __construct()
-    {
-        $this->user = config('clave.ssh.user');
-        $this->port = config('clave.ssh.port');
-        $this->options = config('clave.ssh.options', []);
-    }
+### AuthManager
 
-    public function usePassword(string $password): self { /* creates SSH_ASKPASS script */ }
-    public function setHost(string $host): self { ... }
-    public function run(string $command, int $timeout = 60): mixed { ... }
-    public function interactive(string $command): int { /* passthru for TTY */ }
-    public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed { ... }
-    public function test(): bool { /* returns false with last_error on failure */ }
-    public function lastError(): ?string { ... }
+Resolves Claude authentication from multiple sources with priority chain: `ANTHROPIC_API_KEY` env → `CLAUDE_CODE_OAUTH_TOKEN` env → stored token file.
+
+```php
+class AuthManager
+{
+    public function resolve(): ?array;
+    public function hasAuth(): bool;
+    public function setupToken(): bool;
+    public function clearToken(): void;
+    public function statusInfo(): array;
+}
+```
+
+### HerdManager
+
+```php
+class HerdManager
+{
+    public function proxy(string $domain, string $target, bool $secure = true): void;
+    public function unproxy(string $domain): void;
 }
 ```
 
@@ -1230,42 +750,44 @@ class SshExecutor
 
 ## Configuration
 
-### `~/.config/clave/config.json`
+### config/clave.php
 
-```json
-{
-    "vm": {
-        "base_image": "ghcr.io/cirruslabs/ubuntu:noble",
-        "cpus": 4,
-        "memory_mb": 8192,
-        "disk_gb": 32
-    },
-    "ssh": {
-        "user": "admin",
-        "password": "admin"
-    },
-    "claude": {
-        "model": null,
-        "extra_flags": []
-    },
-    "herd": {
-        "auto_proxy": true,
-        "secure": true
-    },
-    "services": {
-        "mode": "host"
-    }
-}
+```php
+return [
+    'base_image' => env('CLAVE_BASE_IMAGE', 'ghcr.io/cirruslabs/ubuntu:latest'),
+    'base_vm' => env('CLAVE_BASE_VM', 'clave-base'),
+
+    'vm' => [
+        'cpus' => env('CLAVE_VM_CPUS', 4),
+        'memory' => env('CLAVE_VM_MEMORY', 8192),
+        'display' => env('CLAVE_VM_DISPLAY', 'none'),
+    ],
+
+    'ssh' => [
+        'user' => env('CLAVE_SSH_USER', 'admin'),
+        'port' => env('CLAVE_SSH_PORT', 22),
+        'password' => env('CLAVE_SSH_PASSWORD', 'admin'),
+        'options' => [
+            'StrictHostKeyChecking' => 'no',
+            'UserKnownHostsFile' => '/dev/null',
+            'LogLevel' => 'ERROR',
+            'ConnectTimeout' => '5',
+        ],
+    ],
+
+    'anthropic_api_key' => env('ANTHROPIC_API_KEY'),
+    'oauth_token' => env('CLAUDE_CODE_OAUTH_TOKEN'),
+    'auth_file' => env('CLAVE_AUTH_FILE', '~/.config/clave/auth.json'),
+];
 ```
-
-`services.mode` is `"host"` for v0. A future version adds `"vm"` to run MySQL/Redis inside each session's VM.
 
 ### Environment variables
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...     # Required
-export CLAVE_CPUS=4                      # Optional override
-export CLAVE_MEMORY=8192                 # Optional override
+export ANTHROPIC_API_KEY=sk-ant-...        # API key auth
+export CLAUDE_CODE_OAUTH_TOKEN=...          # OAuth token auth (alternative)
+export CLAVE_VM_CPUS=4                      # Optional override
+export CLAVE_VM_MEMORY=8192                 # Optional override
 ```
 
 ---
@@ -1278,35 +800,60 @@ clave/
 │   ├── Commands/
 │   │   ├── DefaultCommand.php
 │   │   ├── ProvisionCommand.php
-│   │   ├── SessionsCommand.php
-│   │   ├── CleanupCommand.php
-│   │   └── ConfigCommand.php
+│   │   ├── AuthCommand.php
+│   │   └── LintCommand.php
 │   ├── Dto/
 │   │   ├── SessionContext.php
-│   │   └── ServiceConfig.php
+│   │   ├── ServiceConfig.php
+│   │   └── OnExit.php
+│   ├── Exceptions/
+│   │   └── AbortedPipelineException.php
 │   ├── Models/
 │   │   └── Session.php
-│   ├── Pipeline/
-│   │   ├── CreateWorktree.php
-│   │   ├── CloneVm.php
-│   │   ├── BootVm.php
-│   │   ├── DiscoverGateway.php
-│   │   ├── CreateSshTunnel.php
-│   │   ├── ConfigureHerdProxy.php
-│   │   ├── BootstrapLaravel.php
-│   │   └── RunClaudeCode.php
-│   ├── Services/
+│   ├── Pipelines/
+│   │   ├── Steps/
+│   │   │   ├── Step.php                    (interface)
+│   │   │   ├── ProgressAware.php           (interface)
+│   │   │   ├── AcceptsProgress.php         (trait)
+│   │   │   ├── ValidateProject.php
+│   │   │   ├── GetGitBranch.php
+│   │   │   ├── EnsureVmExists.php
+│   │   │   ├── CheckClaudeAuthentication.php
+│   │   │   ├── SaveSession.php
+│   │   │   ├── CreateWorktree.php
+│   │   │   ├── CloneVm.php
+│   │   │   ├── BootVm.php
+│   │   │   └── RunClaudeCode.php
+│   │   ├── SessionPipeline.php             (abstract base)
+│   │   ├── PreflightPipeline.php
+│   │   └── ClaudeCodePipeline.php
+│   ├── Support/
 │   │   ├── TartManager.php
 │   │   ├── GitManager.php
-│   │   ├── HerdManager.php
 │   │   ├── SshExecutor.php
+│   │   ├── AuthManager.php
+│   │   ├── HerdManager.php
 │   │   ├── SessionTeardown.php
-│   │   └── ProvisioningPipeline.php
+│   │   ├── ProvisioningPipeline.php
+│   │   └── EnumHelpers.php
 │   └── Providers/
 │       └── AppServiceProvider.php
 ├── config/
 │   └── clave.php
-├── .env.example
+├── database/
+│   └── migrations/
+│       └── 2026_02_23_000000_create_sessions_table.php
+├── tests/
+│   ├── Feature/
+│   │   ├── Commands/
+│   │   │   └── AuthCommandTest.php
+│   │   └── Services/
+│   │       ├── AuthManagerTest.php
+│   │       └── TartManagerTest.php
+│   └── Unit/
+│       └── Dto/
+│           ├── SessionContextTest.php
+│           └── ServiceConfigTest.php
 └── clave
 ```
 
@@ -1314,49 +861,49 @@ clave/
 
 ## Implementation Order
 
-### Sprint 1 — Boot Loop (days 1–2)
+### Sprint 1 — Boot Loop (COMPLETE)
 
-Prove the core lifecycle: boot a VM, get a shell, tear it down.
+Proves the core lifecycle: boot a VM, get a Claude Code session, tear it down.
 
 1. Scaffold Laravel Zero project, install database/dotenv components
-2. `SessionContext` and `ServiceConfig` DTOs
-3. `TartManager` — all methods
-4. `SshExecutor` — all methods (password auth via SSH_ASKPASS)
-5. `ProvisionCommand` + `ProvisioningPipeline` — build base image with PHP/nginx/Claude Code
-7. Pipeline stages: CreateWorktree → CloneVm → BootVm → RunClaudeCode (minimal)
-8. `SessionTeardown` — cleanup VM, worktree prompt
-9. Signal handling (SIGINT/SIGTERM)
-10. Sessions SQLite table
+2. `SessionContext`, `ServiceConfig`, and `OnExit` DTOs
+3. `TartManager` — clone, run, stop, delete, ip, exists, randomizeMac, rename, set
+4. `SshExecutor` — run, interactive, tunnel, test (password auth via SSH_ASKPASS)
+5. `AuthManager` + `AuthCommand` — API key + OAuth support
+6. `ProvisionCommand` + `ProvisioningPipeline` — build base image (PHP 8.4/nginx/Node 22/Claude Code)
+7. `SessionPipeline` base class with progress tracking
+8. Preflight pipeline: `ValidateProject → GetGitBranch → EnsureVmExists → CheckClaudeAuthentication → SaveSession`
+9. Session pipeline: `CreateWorktree → CloneVm → BootVm → RunClaudeCode`
+10. `SessionTeardown` — cleanup VM, worktree prompt, session record
+11. Signal handling via `$this->trap()` (SIGINT/SIGTERM)
+12. Sessions SQLite table + model
 
 **Milestone:** `clave` boots a VM from a Laravel project dir, you get a Claude Code prompt in a worktree, exiting shuts it all down.
 
-### Sprint 2 — Networking + Herd (days 3–4)
+### Sprint 2 — Networking + Herd
 
 Connect the VM to host services and expose the app.
 
-1. `DiscoverGateway` stage — find NAT gateway IP
-2. `BootstrapLaravel` stage — symlink, .env patching with host service IPs, composer install, migrate
-3. `CreateSshTunnel` stage — port forwarding VM:80 → localhost:port
-4. `ConfigureHerdProxy` stage — `herd proxy` setup/teardown
+1. `DiscoverGateway` step — find NAT gateway IP
+2. `BootstrapLaravel` step — symlink, .env patching with host service IPs, composer install, migrate
+3. `CreateSshTunnel` step — port forwarding VM:80 → localhost:port
+4. `ConfigureHerdProxy` step — `herd proxy` setup/teardown
 5. Port auto-assignment (scan 8081–8199)
-6. `HerdManager` service
-7. Host service connectivity check (warn if MySQL/Redis not reachable from VM)
+6. Host service connectivity check (warn if MySQL/Redis not reachable from VM)
 
 **Milestone:** App accessible at `https://project-a1b2.test`, database works against host MySQL.
 
-### Sprint 3 — Polish (days 5–6)
+### Sprint 3 — Polish
 
 1. `SessionsCommand` and `CleanupCommand`
 2. `ConfigCommand`
-3. `GitManager` — merge and discard worktree flows
+3. `GitManager` — verify merge and discard worktree flows end-to-end
 4. `--resume` flag
-5. Progress indicators (Termwind)
-6. Error handling: composer failures, SSH timeouts, missing host services
-7. Verify VirtioFS mount behavior on Ubuntu guest
+5. Error handling: composer failures, SSH timeouts, missing host services
 
 **Milestone:** Handles crashes, parallel sessions, cleans up after itself.
 
-### Sprint 4 — Distribution + Future (day 7+)
+### Sprint 4 — Distribution + Future
 
 1. Build PHAR: `php clave app:build`
 2. Per-project `.clave.json` config
@@ -1368,14 +915,8 @@ Connect the VM to host services and expose the app.
 
 ## Open Questions
 
-1. **VirtioFS mount path in Linux guests.** Tart's VirtioFS for Linux guests may require explicit `mount -t virtiofs` at boot. The provisioning step adds an fstab entry, but this needs verification in
-   Sprint 1. If fstab doesn't work, a systemd mount unit is the fallback.
+1. **Host MySQL/Redis bind address.** Herd Pro defaults to `127.0.0.1`. VMs need services on `0.0.0.0` or the gateway interface. Clave should check reachability during `DiscoverGateway` and print actionable instructions if services aren't accessible. This is a one-time user configuration step.
 
-2. **Host MySQL/Redis bind address.** Herd Pro defaults to `127.0.0.1`. VMs need services on `0.0.0.0` or the gateway interface. Clave should check reachability during `DiscoverGateway` and print
-   actionable instructions if services aren't accessible. This is a one-time user configuration step.
+2. **`tart run` process management.** Need to verify `Process::start()` keeps the VM alive while the parent blocks on TTY. May need `nohup` with PID file as fallback.
 
-3. **`tart run` process management.** Need to verify `Process::start()` keeps the VM alive while the parent blocks on TTY. May need `nohup` with PID file as fallback.
-
-4. ~~**SSH key injection during first provisioning.**~~ **Resolved:** VMs use password auth (`admin`/`admin`) via `SSH_ASKPASS` for all connections. Key-based auth was dropped — VMs are ephemeral and local, so key management added complexity with no benefit.
-
-5. **Composer install on VirtioFS.** v0 runs directly on the mount. If too slow, install on VM local disk and symlink `vendor/` back.
+3. **Composer install on VirtioFS.** v0 runs directly on the mount. If too slow, install on VM local disk and symlink `vendor/` back.
