@@ -64,7 +64,7 @@ jobs:
         run: php clave app:build clave.phar --build-version=${{ github.ref_name }}
 
       - name: Build standalone binary
-        run: ./vendor/bin/phpacker build --src=./builds/clave.phar --php=8.3 mac-arm
+        run: ./vendor/bin/phpacker build mac arm --src=./builds/clave.phar --php=8.3
 
       - name: Prepare release artifacts
         run: |
@@ -78,6 +78,7 @@ jobs:
         run: |
           cd builds
           shasum -a 256 clave > clave.sha256sum
+          shasum -a 256 clave.phar > clave.phar.sha256sum
 
       - name: Import GPG key
         if: ${{ env.GPG_PRIVATE_KEY != '' }}
@@ -94,6 +95,10 @@ jobs:
             --passphrase "$GPG_PASSPHRASE" \
             --detach-sign --output builds/clave.asc \
             builds/clave
+          gpg --batch --pinentry-mode loopback \
+            --passphrase "$GPG_PASSPHRASE" \
+            --detach-sign --output builds/clave.phar.asc \
+            builds/clave.phar
 
       - name: Draft GitHub Release
         uses: softprops/action-gh-release@v2
@@ -103,5 +108,8 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             builds/clave
+            builds/clave.phar
             builds/clave.sha256sum
+            builds/clave.phar.sha256sum
             builds/clave.asc
+            builds/clave.phar.asc
