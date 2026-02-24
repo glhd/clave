@@ -30,6 +30,7 @@ _main() {
 
 _prep() {
   if [ -d "$BIN_DIR" ] && [ ! -w "$BIN_DIR" ]; then
+    echo "Installing into $BIN_DIR will require sudo..."
     SUDO="sudo"
   fi
 }
