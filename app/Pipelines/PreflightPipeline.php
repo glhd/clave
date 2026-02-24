@@ -3,6 +3,7 @@
 namespace App\Pipelines;
 
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\CheckForUpdates;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
 use App\Pipelines\Steps\SaveSession;
@@ -18,6 +19,7 @@ class PreflightPipeline extends SessionPipeline
 	protected function steps(): array
 	{
 		return [
+			CheckForUpdates::class,
 			ValidateProject::class,
 			GetGitBranch::class,
 			EnsureVmExists::class,

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Pipelines\ClaudeCodePipeline;
 use App\Pipelines\PreflightPipeline;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\CheckForUpdates;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\SaveSession;
 use App\Pipelines\Steps\ValidateProject;
@@ -14,6 +15,7 @@ use App\Support\HerdManager;
 use App\Support\SessionTeardown;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
+use App\Support\UpdateChecker;
 use Illuminate\Console\Signals;
 use Illuminate\Support\ServiceProvider;
 
@@ -40,6 +42,9 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(SessionTeardown::class);
 		$this->app->singleton(SaveSession::class);
 		
+		$this->app->singleton(UpdateChecker::class);
+
+		$this->app->singleton(CheckForUpdates::class);
 		$this->app->singleton(ValidateProject::class);
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
