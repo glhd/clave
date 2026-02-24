@@ -17,9 +17,11 @@
     ],
     "require": {
         "php": "^8.3",
+        "illuminate/database": "^12.17",
         "laravel-zero/framework": "^12.0.2"
     },
     "require-dev": {
+        "fakerphp/faker": "^1.23",
         "friendsofphp/php-cs-fixer": "^3.94",
         "glhd/laralint": "^0.1.0",
         "mockery/mockery": "^1.6.12",

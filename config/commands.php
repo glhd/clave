@@ -12,7 +12,7 @@ return [
 	|
 	*/
 
-	'default' => NunoMaduro\LaravelConsoleSummary\SummaryCommand::class,
+	'default' => App\Commands\DefaultCommand::class,
 
 	/*
 	|--------------------------------------------------------------------------
@@ -62,6 +62,7 @@ return [
 		Illuminate\Console\Scheduling\ScheduleFinishCommand::class,
 		Illuminate\Foundation\Console\VendorPublishCommand::class,
 		LaravelZero\Framework\Commands\StubPublishCommand::class,
+		App\Commands\LintCommand::class,
 	],
 
 	/*
