@@ -58,7 +58,7 @@ test('installTartViaPkgx runs correct command', function () {
 
 	$result = app(DependencyManager::class)->installTartViaPkgx();
 
-	expect($result->successful())->toBeTrue();
+	expect($result)->toBeTrue();
 	Process::assertRan('pkgx install tart');
 });
 
@@ -69,15 +69,6 @@ test('installTartViaHomebrew runs correct command', function () {
 
 	$result = app(DependencyManager::class)->installTartViaHomebrew();
 
-	expect($result->successful())->toBeTrue();
+	expect($result)->toBeTrue();
 	Process::assertRan('brew install cirruslabs/cli/tart');
-});
-
-test('manualInstructions includes installation methods', function () {
-	$instructions = app(DependencyManager::class)->manualInstructions();
-
-	expect($instructions)
-		->toContain('pkgx install tart')
-		->toContain('brew install cirruslabs/cli/tart')
-		->toContain('https://tart.run');
 });

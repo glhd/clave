@@ -47,17 +47,15 @@ test('aborts with manual instructions when no package manager is available', fun
 	$context = makeContext();
 
 	expect(fn () => $step->handle($context, fn ($ctx) => $ctx))
-		->toThrow(AbortedPipelineException::class, 'Tart installation is required to continue.');
+		->toThrow(AbortedPipelineException::class, 'Tart must be installed before you can use Clave.');
 });
 
 test('installs tart via pkgx when selected', function () {
-	$install_result = Process::result(exitCode: 0);
-
 	$mock = Mockery::mock(DependencyManager::class);
 	$mock->shouldReceive('isTartInstalled')->andReturn(false, true);
 	$mock->shouldReceive('isPkgxInstalled')->andReturn(true);
 	$mock->shouldReceive('isHomebrewInstalled')->andReturn(false);
-	$mock->shouldReceive('installTartViaPkgx')->once()->andReturn($install_result);
+	$mock->shouldReceive('installTartViaPkgx')->once()->andReturn(true);
 	app()->instance(DependencyManager::class, $mock);
 
 	Prompt::fake([Key::ENTER]); // select first option (pkgx)
@@ -76,13 +74,11 @@ test('installs tart via pkgx when selected', function () {
 });
 
 test('installs tart via homebrew when selected', function () {
-	$install_result = Process::result(exitCode: 0);
-
 	$mock = Mockery::mock(DependencyManager::class);
 	$mock->shouldReceive('isTartInstalled')->andReturn(false, true);
 	$mock->shouldReceive('isPkgxInstalled')->andReturn(false);
 	$mock->shouldReceive('isHomebrewInstalled')->andReturn(true);
-	$mock->shouldReceive('installTartViaHomebrew')->once()->andReturn($install_result);
+	$mock->shouldReceive('installTartViaHomebrew')->once()->andReturn(true);
 	app()->instance(DependencyManager::class, $mock);
 
 	Prompt::fake([Key::ENTER]); // select first option (homebrew)
@@ -113,7 +109,7 @@ test('aborts when user selects manual instructions', function () {
 	$context = makeContext();
 
 	expect(fn () => $step->handle($context, fn ($ctx) => $ctx))
-		->toThrow(AbortedPipelineException::class, 'Tart installation is required to continue.');
+		->toThrow(AbortedPipelineException::class, 'Tart must be installed before you can use Clave.');
 });
 
 test('aborts when pkgx installation fails', function () {
@@ -130,7 +126,7 @@ test('aborts when pkgx installation fails', function () {
 	$context = makeContext();
 
 	expect(fn () => $step->handle($context, fn ($ctx) => $ctx))
-		->toThrow(AbortedPipelineException::class, 'Tart installation is required to continue.');
+		->toThrow(AbortedPipelineException::class, 'Tart must be installed before you can use Clave.');
 });
 
 test('aborts when homebrew installation fails', function () {
@@ -147,18 +143,15 @@ test('aborts when homebrew installation fails', function () {
 	$context = makeContext();
 
 	expect(fn () => $step->handle($context, fn ($ctx) => $ctx))
-		->toThrow(AbortedPipelineException::class, 'Tart installation is required to continue.');
+		->toThrow(AbortedPipelineException::class, 'Tart must be installed before you can use Clave.');
 });
 
 test('aborts when tart not in PATH after successful pkgx install', function () {
-	$install_result = Process::result(exitCode: 0);
-
 	$mock = Mockery::mock(DependencyManager::class);
 	$mock->shouldReceive('isTartInstalled')->andReturn(false); // never available
 	$mock->shouldReceive('isPkgxInstalled')->andReturn(true);
 	$mock->shouldReceive('isHomebrewInstalled')->andReturn(false);
-	$mock->shouldReceive('installTartViaPkgx')->once()->andReturn($install_result);
-	$mock->shouldReceive('manualInstructions')->andReturn('install tart manually');
+	$mock->shouldReceive('installTartViaPkgx')->once()->andReturn(true);
 	app()->instance(DependencyManager::class, $mock);
 
 	Prompt::fake([Key::ENTER]); // select first option (pkgx)
@@ -167,5 +160,5 @@ test('aborts when tart not in PATH after successful pkgx install', function () {
 	$context = makeContext();
 
 	expect(fn () => $step->handle($context, fn ($ctx) => $ctx))
-		->toThrow(AbortedPipelineException::class, 'Tart installation is required to continue.');
+		->toThrow(AbortedPipelineException::class, 'Tart is not available in $PATH. You may need to restart your shell.');
 });
