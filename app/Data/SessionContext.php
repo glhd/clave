@@ -32,7 +32,9 @@ class SessionContext
 	public Recipe $recipe = Recipe::Unknown;
 
 	public ?Session $session = null;
-	
+
+	public array $mcp_tunnel_ports = [];
+
 	public function __construct(
 		public readonly string $session_id,
 		public readonly string $project_name,

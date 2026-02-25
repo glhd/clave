@@ -35,7 +35,8 @@ test('mutable properties default to null', function() {
 		->and($context->tunnel_port)->toBeNull()
 		->and($context->tunnel_process)->toBeNull()
 		->and($context->services)->toBeNull()
-		->and($context->on_exit)->toBeNull();
+		->and($context->on_exit)->toBeNull()
+		->and($context->mcp_tunnel_ports)->toBe([]);
 });
 
 test('mutable properties can be set', function() {
