@@ -4,13 +4,13 @@ namespace App\Pipelines;
 
 use App\Pipelines\Steps\BootVm;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
-use App\Pipelines\Steps\CloneVm;
 use App\Pipelines\Steps\CloneRepo;
+use App\Pipelines\Steps\CloneVm;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
-use App\Pipelines\Steps\RunClaudeCode;
 use App\Pipelines\Steps\SaveSession;
+use App\Pipelines\Steps\SetupClaudeCode;
 
 class SessionSetup extends SessionPipeline
 {
@@ -18,7 +18,7 @@ class SessionSetup extends SessionPipeline
 	{
 		return 'Starting session...';
 	}
-
+	
 	protected function steps(): array
 	{
 		return [
@@ -30,7 +30,7 @@ class SessionSetup extends SessionPipeline
 			CloneRepo::class,
 			CloneVm::class,
 			BootVm::class,
-			RunClaudeCode::class,
+			SetupClaudeCode::class,
 		];
 	}
 }

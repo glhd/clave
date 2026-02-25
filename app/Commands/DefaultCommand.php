@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\Agents\ClaudeCode;
 use App\Data\OnExit;
 use App\Data\SessionContext;
 use App\Exceptions\AbortedPipelineException;
@@ -22,6 +23,7 @@ class DefaultCommand extends Command
 	protected $hidden = true;
 	
 	public function handle(
+		ClaudeCode $agent,
 		SessionSetup $setup,
 		SessionTeardown $teardown,
 	): int {
@@ -39,8 +41,15 @@ class DefaultCommand extends Command
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown($context));
 			
 			try {
+				// First set everything up
 				$setup($context);
+				
+				// Then clear screen and start our agent in the VM
+				clear();
+				$agent($context);
 			} finally {
+				// Finally, clear screen again and run teardown
+				clear();
 				$teardown($context);
 			}
 			
