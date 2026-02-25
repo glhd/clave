@@ -4,6 +4,7 @@ namespace App\Pipelines;
 
 use App\Pipelines\Steps\BootVm;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\CheckForUpdates;
 use App\Pipelines\Steps\CloneRepo;
 use App\Pipelines\Steps\CloneVm;
 use App\Pipelines\Steps\DetectRecipe;
@@ -23,6 +24,7 @@ class SessionSetup extends SessionPipeline
 	protected function steps(): array
 	{
 		return [
+			CheckForUpdates::class,
 			EnsureTartInstalled::class,
 			DetectRecipe::class,
 			GetGitBranch::class,
