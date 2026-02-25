@@ -7,6 +7,22 @@ beforeEach(function() {
 	$this->tart = new TartManager();
 });
 
+test('isInstalled returns true when tart binary found', function() {
+	Process::fake([
+		'which tart' => Process::result(output: '/opt/homebrew/bin/tart'),
+	]);
+
+	expect(TartManager::isInstalled())->toBeTrue();
+});
+
+test('isInstalled returns false when tart not found', function() {
+	Process::fake([
+		'which tart' => Process::result(output: '', exitCode: 1),
+	]);
+
+	expect(TartManager::isInstalled())->toBeFalse();
+});
+
 test('clone runs correct command', function() {
 	Process::fake();
 

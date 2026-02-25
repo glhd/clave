@@ -3,6 +3,7 @@
 namespace App\Pipelines;
 
 use App\Pipelines\Steps\CheckClaudeAuthentication;
+use App\Pipelines\Steps\CheckForTart;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
@@ -18,6 +19,7 @@ class PreflightPipeline extends SessionPipeline
 	protected function steps(): array
 	{
 		return [
+			CheckForTart::class,
 			DetectRecipe::class,
 			GetGitBranch::class,
 			EnsureVmExists::class,

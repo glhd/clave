@@ -7,6 +7,11 @@ use RuntimeException;
 
 class TartManager
 {
+	public static function isInstalled(): bool
+	{
+		return str_contains((string) Process::run('which tart')->output(), '/tart');
+	}
+
 	public function clone(string $source, string $name): mixed
 	{
 		return $this->tart('clone', $source, $name)->throw();
