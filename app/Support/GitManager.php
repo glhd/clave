@@ -10,7 +10,7 @@ class GitManager
 	public function isRepo(string $path): bool
 	{
 		return Process::path($path)
-			->run('git rev-parse --is-inside-work-tree')
+			->run(['git', 'rev-parse', '--is-inside-work-tree'])
 			->successful();
 	}
 
@@ -18,7 +18,7 @@ class GitManager
 	{
 		return trim(
 			Process::path($path)
-				->run('git rev-parse --abbrev-ref HEAD')
+				->run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
 				->throw()
 				->output()
 		);
@@ -26,16 +26,12 @@ class GitManager
 
 	public function cloneLocal(string $repo_path, string $clone_path, string $base_branch, string $clone_branch): mixed
 	{
-		$escaped_path = escapeshellarg($clone_path);
-		$escaped_base = escapeshellarg($base_branch);
-		$escaped_clone = escapeshellarg($clone_branch);
-
 		Process::path($repo_path)
-			->run("git clone --local --branch {$escaped_base} . {$escaped_path}")
+			->run(['git', 'clone', '--local', '--branch', $base_branch, '.', $clone_path])
 			->throw();
 
 		return Process::path($clone_path)
-			->run("git checkout -b {$escaped_clone}")
+			->run(['git', 'checkout', '-b', $clone_branch])
 			->throw();
 	}
 
@@ -48,7 +44,7 @@ class GitManager
 			throw new InvalidArgumentException("The path '{$clone_path}' is outside of '{$repos_dir}'");
 		}
 
-		Process::run('rm -rf '.escapeshellarg($real_path));
+		Process::run(['rm', '-rf', $real_path]);
 	}
 
 	public function hasChanges(string $clone_path, string $base_branch): bool
@@ -68,16 +64,16 @@ class GitManager
 
 	public function commitAllChanges(string $clone_path, string $message): bool
 	{
-		Process::path($clone_path)->run('git add -A');
+		Process::path($clone_path)->run(['git', 'add', '-A']);
 
-		$status = Process::path($clone_path)->run('git status --porcelain');
+		$status = Process::path($clone_path)->run(['git', 'status', '--porcelain']);
 
 		if (trim($status->output()) === '') {
 			return false;
 		}
 
 		Process::path($clone_path)
-			->run('git commit -m '.escapeshellarg($message))
+			->run(['git', 'commit', '-m', $message])
 			->throw();
 
 		return true;
@@ -85,22 +81,18 @@ class GitManager
 
 	public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): void
 	{
-		$escaped_base = escapeshellarg($base_branch);
-		$escaped_clone_path = escapeshellarg($clone_path);
-		$escaped_clone_branch = escapeshellarg($clone_branch);
-
 		$this->commitAllChanges($clone_path, 'WIP: auto-commit from clave session');
 
 		Process::path($repo_path)
-			->run("git fetch {$escaped_clone_path} {$escaped_clone_branch}")
+			->run(['git', 'fetch', $clone_path, $clone_branch])
 			->throw();
 
 		Process::path($repo_path)
-			->run("git checkout {$escaped_base}")
+			->run(['git', 'checkout', $base_branch])
 			->throw();
 
 		Process::path($repo_path)
-			->run('git merge FETCH_HEAD')
+			->run(['git', 'merge', 'FETCH_HEAD'])
 			->throw();
 
 		$this->removeClone($clone_path);
