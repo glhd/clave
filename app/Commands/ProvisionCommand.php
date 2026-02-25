@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\Prompts\ClaveStatus;
 use App\Support\ProvisioningPipeline;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
@@ -25,6 +26,7 @@ class ProvisionCommand extends Command
 		}
 
 		$tmp_name = 'clave-tmp-'.bin2hex(random_bytes(4));
+		$script_dir = null;
 
 		$this->trap([SIGINT, SIGTERM], function() use ($tart, $tmp_name) {
 			$this->newLine();
@@ -34,55 +36,58 @@ class ProvisionCommand extends Command
 			exit(1);
 		});
 
-		$this->info("Pulling OCI image: {$image}");
-		$tart->clone($image, $tmp_name);
-
-		$cpus = config('clave.vm.cpus');
-		$memory = config('clave.vm.memory');
-		$display = config('clave.vm.display');
-		$tart->set($tmp_name, $cpus, $memory, $display);
-
-		$password = config('clave.ssh.password');
-		$ssh->usePassword($password);
-
-		$script_dir = sys_get_temp_dir().'/clave-provision-'.bin2hex(random_bytes(4));
-		mkdir($script_dir, 0700, true);
-		file_put_contents($script_dir.'/provision.sh', ProvisioningPipeline::toScript());
+		$status = app(ClaveStatus::class);
+		$status->start('Provisioning base VM', 8);
 
 		try {
-			$this->info('Booting VM for provisioning...');
+			$status->advance()->hint('Pulling OCI image...');
+			$tart->clone($image, $tmp_name);
+
+			$status->advance()->hint('Configuring VM...');
+			$cpus = config('clave.vm.cpus');
+			$memory = config('clave.vm.memory');
+			$display = config('clave.vm.display');
+			$tart->set($tmp_name, $cpus, $memory, $display);
+
+			$password = config('clave.ssh.password');
+			$ssh->usePassword($password);
+
+			$script_dir = sys_get_temp_dir().'/clave-provision-'.bin2hex(random_bytes(4));
+			mkdir($script_dir, 0700, true);
+			file_put_contents($script_dir.'/provision.sh', ProvisioningPipeline::toScript());
+
+			$status->advance()->hint('Booting VM...');
 			$tart->runBackground($tmp_name, [$script_dir]);
 
-			$this->info('Waiting for VM to be ready...');
+			$status->advance()->hint('Waiting for VM to be ready...');
 			$tart->waitForReady($tmp_name, $ssh, 120);
 
-			$this->info('Mounting provisioning script...');
+			$status->advance()->hint('Mounting provisioning script...');
 			$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs com.apple.virtio-fs.automount /mnt/provision');
 
-			$this->info('Running provisioning script...');
+			$status->advance()->hint('Running provisioning script...');
 			$ssh->run('sudo bash /mnt/provision/provision.sh', 600);
 
-			$this->info('Stopping VM...');
+			$status->advance()->hint('Stopping VM...');
 			$tart->stop($tmp_name);
+
+			$status->advance()->hint('Finalizing base image...');
+			if ($tart->exists($base_vm)) {
+				$tart->delete($base_vm);
+			}
+			$tart->rename($tmp_name, $base_vm);
 		} catch (\Throwable $e) {
-			$this->error('Provisioning failed: '.$e->getMessage());
 			$tart->stop($tmp_name);
 			$tart->delete($tmp_name);
 
 			throw $e;
 		} finally {
-			@unlink($script_dir.'/provision.sh');
-			@rmdir($script_dir);
+			if ($script_dir) {
+				@unlink($script_dir.'/provision.sh');
+				@rmdir($script_dir);
+			}
+			$status->finish();
 		}
-
-		if ($tart->exists($base_vm)) {
-			$this->info("Replacing existing base image '{$base_vm}'...");
-			$tart->delete($base_vm);
-		}
-
-		$tart->rename($tmp_name, $base_vm);
-
-		$this->info('Base image provisioned successfully.');
 
 		return self::SUCCESS;
 	}

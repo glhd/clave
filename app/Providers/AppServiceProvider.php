@@ -49,8 +49,6 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
 		
-		$this->app->singleton(ClaveStatus::class, function() {
-			return new ClaveStatus('Getting ready...', 1);
-		});
+		$this->app->singleton(ClaveStatus::class);
 	}
 }
