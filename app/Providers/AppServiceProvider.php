@@ -15,19 +15,18 @@ use App\Support\SessionTeardown;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
 use Illuminate\Console\Signals;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
 	public function boot(): void
 	{
-		if (\Phar::running()) {
-			$config_dir = ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave';
-
-			if (! is_dir($config_dir)) {
-				mkdir($config_dir, 0755, true);
-			}
-		}
+		$fs = app(Filesystem::class);
+		
+		$config_dir = ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave';
+		
+		$fs->ensureDirectoryExists($config_dir);
 	}
 
 	public function register(): void

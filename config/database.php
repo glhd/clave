@@ -2,10 +2,6 @@
 
 use Illuminate\Support\Str;
 
-$sqlite_path = \Phar::running()
-	? ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave/database.sqlite'
-	: database_path('database.sqlite');
-
 return [
 	/*
 	|--------------------------------------------------------------------------
@@ -37,7 +33,7 @@ return [
 		'sqlite' => [
 			'driver' => 'sqlite',
 			'url' => env('DB_URL'),
-			'database' => env('DB_DATABASE', $sqlite_path),
+			'database' => env('DB_DATABASE', ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave/database.sqlite'),
 			'prefix' => '',
 			'prefix_indexes' => null,
 			'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
