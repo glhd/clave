@@ -6,7 +6,6 @@ use App\Data\OnExit;
 use App\Data\SessionContext;
 use App\Exceptions\AbortedPipelineException;
 use App\Pipelines\ClaudeCodePipeline;
-use App\Pipelines\PreflightPipeline;
 use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
 use function Laravel\Prompts\clear;
@@ -22,7 +21,6 @@ class DefaultCommand extends Command
 	protected $hidden = true;
 	
 	public function handle(
-		PreflightPipeline $preflight,
 		ClaudeCodePipeline $claude,
 		SessionTeardown $teardown,
 	): int {
@@ -36,8 +34,6 @@ class DefaultCommand extends Command
 			$context = $this->newContext();
 			
 			$this->line("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info>");
-			
-			$preflight->run($context);
 			
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown->run($context));
 			
