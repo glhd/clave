@@ -3,6 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Data\SessionContext;
+use App\Facades\Progress;
 use App\Support\AuthManager;
 use Closure;
 use function Laravel\Prompts\warning;
@@ -23,9 +24,13 @@ class CheckClaudeAuthentication implements Step
 		if (! $this->auth->hasAuth()) {
 			$this->hint('Setting up Claude Code token...');
 			
+			Progress::suspend();
+			
 			if (! $this->auth->setupToken()) {
 				warning('Authentication setup was not completed. Claude on the VM may prompt for login.');
 			}
+			
+			Progress::resume();
 		}
 		
 		return $next($context);

@@ -49,6 +49,32 @@ class ClaveProgress
 		return $this;
 	}
 	
+	public function suspend(): static
+	{
+		if ($this->progress) {
+			$this->progress->cancelMessage = 'Paused';
+			$this->progress->state = 'cancel';
+			$this->progress->render();
+			
+			$this->progress->restoreCursor();
+		}
+		
+		return $this;
+	}
+	
+	public function resume(): static
+	{
+		if ($this->progress) {
+			$this->progress->hideCursor();
+			
+			$this->progress->cancelMessage = 'Cancelled';
+			$this->progress->state = 'active';
+			$this->progress->render();
+		}
+		
+		return $this;
+	}
+	
 	public function finish(): static
 	{
 		if (0 === $this->refs) {
