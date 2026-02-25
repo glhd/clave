@@ -6,122 +6,130 @@ use App\Data\SessionContext;
 use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
+use Illuminate\Filesystem\Filesystem;
+use Throwable;
 
 class SetupClaudeCode implements Step
 {
 	use ProvidesProgressHints;
-
+	
+	protected string $home;
+	
 	protected array $home_claude_json = [];
-
+	
 	protected array $home_claude_settings = [];
-
+	
 	public function __construct(
 		protected SshExecutor $ssh,
 		protected AuthManager $auth,
+		protected Filesystem $fs,
 	) {
 	}
-
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->home_claude_json = $this->readHomeJson('/.claude.json');
-		$this->home_claude_settings = $this->readHomeJson('/.claude/settings.json');
-
 		$this->hint('Writing Claude Code config...');
-		$this->writeConfigFiles($this->auth->resolve());
-
-		$this->copyClaudeMd();
-
-		$context->mcp_tunnel_ports = $this->extractMcpPorts();
-
+		
+		$config = $this->readConfig('.claude.json');
+		$settings = $this->readConfig('.claude/settings.json');
+		$md = $this->readConfig('.claude/CLAUDE.md');
+		
+		$this->writeConfigFiles($config, $settings, $md, $this->auth->resolve());
+		
+		$context->mcp_tunnel_ports = $this->extractMcpPorts($config);
+		
 		return $next($context);
 	}
-
-	protected function readHomeJson(string $relative_path): array
+	
+	protected function readConfig(string $relative_path, ?bool $json = null): string|array
 	{
-		$path = getenv('HOME').$relative_path;
-
-		if (! file_exists($path)) {
-			return [];
+		$json ??= str_ends_with($relative_path, '.json');
+		
+		try {
+			$path = $this->homePath($relative_path);
+			
+			if (! file_exists($path)) {
+				return $json ? [] : '';
+			}
+			
+			return $json ? $this->fs->json($path) : $this->fs->get($path);
+		} catch (Throwable) {
+			return $json ? [] : '';
 		}
-
-		return json_decode(file_get_contents($path), true) ?? [];
 	}
-
-	protected function writeConfigFiles(?array $resolved): void
+	
+	protected function writeConfigFiles(array $config, array $settings, string $md, ?array $auth): void
 	{
 		$claude_json = array_filter([
-			'autoUpdates' => $this->home_claude_json['autoUpdates'] ?? null,
-			'mcpServers' => $this->home_claude_json['mcpServers'] ?? null,
-			'showSpinnerTree' => $this->home_claude_json['showSpinnerTree'] ?? null,
-			'theme' => $this->home_claude_json['theme'] ?? 'light',
+			'autoUpdates' => $config['autoUpdates'] ?? null,
+			'mcpServers' => $config['mcpServers'] ?? null,
+			'showSpinnerTree' => $config['showSpinnerTree'] ?? null,
+			'theme' => $config['theme'] ?? 'light',
 			'hasCompletedOnboarding' => true,
 			'shiftEnterKeyBindingInstalled' => true,
 		], fn($value) => $value !== null);
-
-		$settings_json = [
+		
+		$settings_json = array_filter([
 			'skipDangerousModePermissionPrompt' => true,
-		];
-
-		if (isset($this->home_claude_settings['alwaysThinkingEnabled'])) {
-			$settings_json['alwaysThinkingEnabled'] = $this->home_claude_settings['alwaysThinkingEnabled'];
-		}
-
+			'alwaysThinkingEnabled' => $settings['alwaysThinkingEnabled'] ?? null,
+		], fn($value) => $value !== null);
+		
 		$claude_json_encoded = base64_encode(json_encode($claude_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 		$settings_json_encoded = base64_encode(json_encode($settings_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
+		
 		$command = 'mkdir -p ~/.claude'
 			." && echo {$claude_json_encoded} | base64 -d > ~/.claude.json"
 			." && echo {$settings_json_encoded} | base64 -d > ~/.claude/settings.json";
-
-		if ($resolved !== null && $resolved['type'] === 'oauth') {
-			$credentials = base64_encode(json_encode([
+		
+		if ($auth !== null && $auth['type'] === 'oauth') {
+			$credentials_encoded = base64_encode(json_encode([
 				'claudeAiOauth' => [
-					'accessToken' => $resolved['value'],
+					'accessToken' => $auth['value'],
 					'refreshToken' => '',
 					'expiresAt' => (time() + 86400 * 365) * 1000,
 					'scopes' => ['user:inference', 'user:profile'],
 				],
 			], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
-			$command .= " && echo {$credentials} | base64 -d > ~/.claude/.credentials.json";
+			
+			$command .= " && echo {$credentials_encoded} | base64 -d > ~/.claude/.credentials.json";
 		}
-
+		
+		if (! empty($md)) {
+			$md_encoded = base64_encode($md);
+			$command .= " && echo {$md_encoded} | base64 -d > ~/.claude/CLAUDE.md";
+		}
+		
 		$this->ssh->run($command);
 	}
-
-	protected function extractMcpPorts(): array
+	
+	protected function extractMcpPorts(array $config): array
 	{
-		$mcp_servers = $this->home_claude_json['mcpServers'] ?? [];
+		$mcp_servers = $config['mcpServers'] ?? [];
 		$ports = [];
-
+		
 		foreach ($mcp_servers as $server) {
 			$url = $server['url'] ?? null;
-
+			
 			if ($url === null) {
 				continue;
 			}
-
+			
 			$parsed = parse_url($url);
 			$host = $parsed['host'] ?? null;
 			$port = $parsed['port'] ?? null;
-
+			
 			if ($port !== null && in_array($host, ['localhost', '127.0.0.1'])) {
 				$ports[] = $port;
 			}
 		}
-
+		
 		return array_unique($ports);
 	}
-
-	protected function copyClaudeMd(): void
+	
+	protected function homePath(string $path): string
 	{
-		$path = getenv('HOME').'/.claude/CLAUDE.md';
-
-		if (! file_exists($path)) {
-			return;
-		}
-
-		$content = base64_encode(file_get_contents($path));
-		$this->ssh->run("echo {$content} | base64 -d > ~/.claude/CLAUDE.md");
+		$this->home ??= ($_SERVER['HOME'] ?? getenv('HOME'));
+		
+		return $this->home.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
 	}
 }
