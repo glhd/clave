@@ -11,12 +11,14 @@ use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
 use function Laravel\Prompts\clear;
 use function Laravel\Prompts\error;
-use LaravelZero\Framework\Commands\Command;
 use function Laravel\Prompts\note;
+use LaravelZero\Framework\Commands\Command;
 
 class DefaultCommand extends Command
 {
-	protected $signature = 'default {--on-exit= : Action on exit: keep, merge, discard}';
+	protected $signature = 'default
+		{--on-exit= : Action on exit: keep, merge, discard}
+		{--isolate : Fork the repo into an isolated clone for this session}';
 	
 	protected $description = 'Start a Clave session in the current project';
 	
@@ -75,6 +77,7 @@ class DefaultCommand extends Command
 			project_dir: $project_dir,
 			on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
 			command: $this,
+			isolate: (bool) $this->option('isolate'),
 		);
 	}
 }
