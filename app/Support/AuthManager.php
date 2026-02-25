@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Process;
 use function Laravel\Prompts\textarea;
 
 class AuthManager
@@ -66,10 +67,11 @@ class AuthManager
 	
 	public function setupToken(): bool
 	{
-		$exit_code = 0;
-		passthru('claude setup-token', $exit_code);
+		$result = Process::tty()
+			->timeout(0)
+			->run('claude setup-token');
 
-		if ($exit_code !== 0) {
+		if ($result->exitCode() !== 0) {
 			return false;
 		}
 
