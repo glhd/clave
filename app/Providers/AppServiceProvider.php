@@ -21,6 +21,13 @@ class AppServiceProvider extends ServiceProvider
 {
 	public function boot(): void
 	{
+		if (\Phar::running()) {
+			$config_dir = ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave';
+
+			if (! is_dir($config_dir)) {
+				mkdir($config_dir, 0755, true);
+			}
+		}
 	}
 
 	public function register(): void
