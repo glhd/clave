@@ -7,71 +7,72 @@ use App\Support\SshExecutor;
 use App\Support\TartManager;
 use Closure;
 use RuntimeException;
+use Throwable;
 
-class BootVm implements Step, ProgressAware
+class BootVm implements Step
 {
-	use AcceptsProgress;
-
+	use ProvidesProgressHints;
+	
 	protected int $timeout = 90;
-
+	
 	public function __construct(
 		protected TartManager $tart,
 		protected SshExecutor $ssh,
 	) {
 	}
-
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$mount_path = $context->clone_path ?? $context->project_dir;
-
+		
 		$this->hint("Booting VM '{$context->vm_name}'...");
 		$this->tart->runBackground($context->vm_name, [$mount_path]);
-
+		
 		$this->ssh->usePassword(config('clave.ssh.password'));
-
+		
 		$this->hint('Waiting for VM IP address...');
 		$ip = $this->tart->ip($context->vm_name, $this->timeout);
 		$context->vm_ip = $ip;
 		$this->ssh->setHost($ip);
-
+		
 		$this->hint('Waiting for SSH...');
 		$this->waitForSsh($context);
-
+		
 		$this->hint('Mounting shared directories...');
 		$this->mountSharedDirectories($context);
-
+		
 		return $next($context);
 	}
-
+	
 	protected function mountSharedDirectories(SessionContext $context): void
 	{
 		$mount_timeout = 30;
 		$start = time();
 		$last_error = '';
-
+		
 		$this->ssh->run('sudo mkdir -p /srv/project');
-
+		
 		while (time() - $start < $mount_timeout) {
 			try {
 				$result = $this->ssh->run('sudo mount -t virtiofs com.apple.virtio-fs.automount /srv/project 2>&1; true');
 				$output = trim($result->output());
-
+				
 				if ($output && $output !== $last_error) {
 					$last_error = $output;
 				}
-
+				
 				$this->ssh->run('mountpoint -q /srv/project');
-
+				
 				return;
-			} catch (\Throwable) {
+			} catch (Throwable) {
 				$elapsed = time() - $start;
 				$this->hint("Waiting for VirtioFS mount ({$elapsed}s)...");
 				sleep(2);
 			}
 		}
-
+		
 		$diag = $last_error;
-
+		
 		try {
 			$result = $this->ssh->run(implode("\n", [
 				'echo "=== /srv/project ==="',
@@ -85,39 +86,39 @@ class BootVm implements Step, ProgressAware
 				'true',
 			]));
 			$diag .= "\n".$result->output();
-		} catch (\Throwable) {
+		} catch (Throwable) {
 		}
-
+		
 		throw new RuntimeException(
 			"Timed out after {$mount_timeout}s waiting for VirtioFS mount on VM '{$context->vm_name}'"
 			.($diag ? "\nDiagnostics:\n{$diag}" : '')
 		);
 	}
-
+	
 	protected function waitForSsh(SessionContext $context): void
 	{
 		$start = time();
 		$attempts = 0;
-
+		
 		while (time() - $start < $this->timeout) {
 			$attempts++;
-
+			
 			if ($this->ssh->test()) {
 				return;
 			}
-
+			
 			$elapsed = time() - $start;
 			$error = $this->ssh->lastError();
 			
 			if ($attempts > 5) {
 				$this->hint("Waiting for SSH ({$elapsed}s)...");
 			}
-
+			
 			sleep(2);
 		}
-
+		
 		$error = $this->ssh->lastError();
-
+		
 		throw new RuntimeException(
 			"Timed out after {$this->timeout}s waiting for SSH on VM '{$context->vm_name}' at {$context->vm_ip}"
 			.($error ? "\nLast error: {$error}" : '')

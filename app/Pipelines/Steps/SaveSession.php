@@ -6,10 +6,10 @@ use App\Data\SessionContext;
 use App\Models\Session;
 use Closure;
 
-class SaveSession implements Step, ProgressAware
+class SaveSession implements Step
 {
-	use AcceptsProgress;
-
+	use ProvidesProgressHints;
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$this->hint('Saving session...');

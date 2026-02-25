@@ -7,19 +7,19 @@ use App\Support\AuthManager;
 use Closure;
 use function Laravel\Prompts\warning;
 
-class CheckClaudeAuthentication implements Step, ProgressAware
+class CheckClaudeAuthentication implements Step
 {
-	use AcceptsProgress;
-
+	use ProvidesProgressHints;
+	
 	public function __construct(
 		protected AuthManager $auth,
 	) {
 	}
-
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$this->hint('Verifying Claude authentication...');
-
+		
 		if (! $this->auth->hasAuth()) {
 			$this->hint('Setting up Claude Code token...');
 			

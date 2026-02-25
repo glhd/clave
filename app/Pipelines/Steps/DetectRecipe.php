@@ -7,9 +7,9 @@ use App\Data\SessionContext;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
 
-class DetectRecipe implements Step, ProgressAware
+class DetectRecipe implements Step
 {
-	use AcceptsProgress;
+	use ProvidesProgressHints;
 	
 	public function __construct(
 		protected Filesystem $fs,

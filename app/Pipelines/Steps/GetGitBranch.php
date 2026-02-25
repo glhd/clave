@@ -6,9 +6,9 @@ use App\Data\SessionContext;
 use App\Support\GitManager;
 use Closure;
 
-class GetGitBranch implements Step, ProgressAware
+class GetGitBranch implements Step
 {
-	use AcceptsProgress;
+	use ProvidesProgressHints;
 	
 	public function __construct(
 		protected GitManager $git,

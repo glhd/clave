@@ -63,6 +63,7 @@ class SshExecutor
 	{
 		$result = Process::env($this->sshEnv())
 			->tty()
+			->timeout(0)
 			->run($this->buildCommandArgs($command, tty: true));
 
 		return $result->exitCode();

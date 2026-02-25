@@ -307,7 +307,7 @@ DiscoverGateway → CreateSshTunnel → ConfigureHerdProxy → BootstrapLaravel
 #### CloneRepo
 
 ```php
-class CloneRepo implements Step, ProgressAware
+class CloneRepo implements Step
 {
     use AcceptsProgress;
 
@@ -330,7 +330,7 @@ class CloneRepo implements Step, ProgressAware
 #### CloneVm
 
 ```php
-class CloneVm implements Step, ProgressAware
+class CloneVm implements Step
 {
     use AcceptsProgress;
 
@@ -358,7 +358,7 @@ class CloneVm implements Step, ProgressAware
 #### BootVm
 
 ```php
-class BootVm implements Step, ProgressAware
+class BootVm implements Step
 {
     use AcceptsProgress;
 
@@ -390,7 +390,7 @@ class BootVm implements Step, ProgressAware
 #### RunClaudeCode
 
 ```php
-class RunClaudeCode implements Step, ProgressAware
+class RunClaudeCode implements Step
 {
     use AcceptsProgress;
 
@@ -415,7 +415,7 @@ class RunClaudeCode implements Step, ProgressAware
 #### Future Steps (Sprint 2)
 
 ```php
-class DiscoverGateway implements Step, ProgressAware
+class DiscoverGateway implements Step
 {
     public function handle(SessionContext $context, Closure $next): mixed
     {
@@ -429,7 +429,7 @@ class DiscoverGateway implements Step, ProgressAware
 ```
 
 ```php
-class CreateSshTunnel implements Step, ProgressAware
+class CreateSshTunnel implements Step
 {
     public function handle(SessionContext $context, Closure $next): mixed
     {
@@ -443,7 +443,7 @@ class CreateSshTunnel implements Step, ProgressAware
 ```
 
 ```php
-class ConfigureHerdProxy implements Step, ProgressAware
+class ConfigureHerdProxy implements Step
 {
     public function handle(SessionContext $context, Closure $next): mixed
     {
@@ -457,7 +457,7 @@ class ConfigureHerdProxy implements Step, ProgressAware
 ```
 
 ```php
-class BootstrapLaravel implements Step, ProgressAware
+class BootstrapLaravel implements Step
 {
     public function handle(SessionContext $context, Closure $next): mixed
     {

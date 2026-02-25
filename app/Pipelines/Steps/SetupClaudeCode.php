@@ -7,9 +7,9 @@ use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
 
-class SetupClaudeCode implements Step, ProgressAware
+class SetupClaudeCode implements Step
 {
-	use AcceptsProgress;
+	use ProvidesProgressHints;
 	
 	public function __construct(
 		protected SshExecutor $ssh,
