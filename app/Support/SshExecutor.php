@@ -53,34 +53,37 @@ class SshExecutor
 
 	public function run(string $command, int $timeout = 60): mixed
 	{
-		return Process::timeout($timeout)
-			->run($this->buildCommand($command))
+		return Process::env($this->sshEnv())
+			->timeout($timeout)
+			->run($this->buildCommandArgs($command))
 			->throw();
 	}
 
 	public function interactive(string $command): int
 	{
-		$exit_code = 0;
-		
-		passthru($this->buildCommand($command, tty: true), $exit_code);
+		$result = Process::env($this->sshEnv())
+			->tty()
+			->run($this->buildCommandArgs($command, tty: true));
 
-		return $exit_code;
+		return $result->exitCode();
 	}
 
 	public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed
 	{
-		$cmd = $this->buildSshPrefix();
-		$cmd .= ' -N -L '.escapeshellarg("{$local_port}:{$remote_host}:{$remote_port}");
-		$cmd .= ' '.escapeshellarg("{$this->user}@{$this->host}");
-
-		return Process::start($cmd);
+		return Process::env($this->sshEnv())
+			->start([
+				...$this->buildSshArgs(),
+				'-N', '-L', "{$local_port}:{$remote_host}:{$remote_port}",
+				"{$this->user}@{$this->host}",
+			]);
 	}
 
 	public function test(): bool
 	{
 		try {
-			$result = Process::timeout(5)
-				->run($this->buildCommand('echo ok'));
+			$result = Process::env($this->sshEnv())
+				->timeout(5)
+				->run($this->buildCommandArgs('echo ok'));
 
 			if ($result->successful() && str_contains($result->output(), 'ok')) {
 				$this->last_error = null;
@@ -103,34 +106,41 @@ class SshExecutor
 		return $this->last_error;
 	}
 
-	protected function buildCommand(string $remote_command, bool $tty = false): string
+	protected function buildCommandArgs(string $remote_command, bool $tty = false): array
 	{
-		$cmd = $this->buildSshPrefix();
-		if ($tty) {
-			$cmd .= ' -tt';
-		}
-		$cmd .= ' '.escapeshellarg("{$this->user}@{$this->host}");
-		$cmd .= ' '.escapeshellarg($remote_command);
+		$args = $this->buildSshArgs();
 
-		return $cmd;
+		if ($tty) {
+			$args[] = '-tt';
+		}
+
+		$args[] = "{$this->user}@{$this->host}";
+		$args[] = $remote_command;
+
+		return $args;
 	}
 
-	protected function buildSshPrefix(): string
+	protected function buildSshArgs(): array
 	{
-		$parts = [];
-
-		if ($this->password !== null) {
-			$parts[] = 'SSH_ASKPASS='.escapeshellarg($this->askpass_path);
-			$parts[] = 'SSH_ASKPASS_REQUIRE=force';
-		}
-
-		$parts[] = 'ssh';
-		$parts[] = "-p {$this->port}";
+		$args = ['ssh', '-p', (string) $this->port];
 
 		foreach ($this->options as $key => $value) {
-			$parts[] = '-o '.escapeshellarg("{$key}={$value}");
+			$args[] = '-o';
+			$args[] = "{$key}={$value}";
 		}
 
-		return implode(' ', $parts);
+		return $args;
+	}
+
+	protected function sshEnv(): array
+	{
+		if ($this->password === null) {
+			return [];
+		}
+
+		return [
+			'SSH_ASKPASS' => $this->askpass_path,
+			'SSH_ASKPASS_REQUIRE' => 'force',
+		];
 	}
 }

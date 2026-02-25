@@ -8,17 +8,17 @@ class HerdManager
 {
 	public function proxy(string $domain, string $target, bool $secure = true): mixed
 	{
-		$cmd = 'herd proxy '.escapeshellarg($domain).' '.escapeshellarg($target);
+		$args = ['herd', 'proxy', $domain, $target];
 
 		if ($secure) {
-			$cmd .= ' --secure';
+			$args[] = '--secure';
 		}
 
-		return Process::run($cmd)->throw();
+		return Process::run($args)->throw();
 	}
 
 	public function unproxy(string $domain): mixed
 	{
-		return Process::run('herd unproxy '.escapeshellarg($domain));
+		return Process::run(['herd', 'unproxy', $domain]);
 	}
 }

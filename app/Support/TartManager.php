@@ -14,17 +14,18 @@ class TartManager
 
 	public function runBackground(string $name, array $dirs = [], bool $no_graphics = true): mixed
 	{
-		$args = ['run', escapeshellarg($name)];
+		$args = ['tart', 'run', $name];
 
 		if ($no_graphics) {
 			$args[] = '--no-graphics';
 		}
 
 		foreach ($dirs as $path) {
-			$args[] = '--dir '.escapeshellarg($path);
+			$args[] = '--dir';
+			$args[] = $path;
 		}
 
-		return Process::start('tart '.implode(' ', $args));
+		return Process::start($args);
 	}
 
 	public function stop(string $name): mixed
@@ -63,14 +64,14 @@ class TartManager
 
 	public function list(): array
 	{
-		$result = Process::run('tart list --format json')->throw();
+		$result = Process::run(['tart', 'list', '--format', 'json'])->throw();
 
 		return json_decode($result->output(), true) ?? [];
 	}
 
 	public function randomizeMac(string $name): mixed
 	{
-		return Process::run($this->tartCmd('set', $name).' --random-mac')->throw();
+		return Process::run([...$this->tartCmd('set', $name), '--random-mac'])->throw();
 	}
 
 	public function rename(string $old_name, string $new_name): mixed
@@ -80,28 +81,29 @@ class TartManager
 
 	public function set(string $name, ?int $cpus = null, ?int $memory = null, ?string $display = null): mixed
 	{
-		$args = [escapeshellarg($name)];
+		$args = ['tart', 'set', $name];
 
 		if ($cpus !== null) {
-			$args[] = "--cpu {$cpus}";
+			$args[] = '--cpu';
+			$args[] = (string) $cpus;
 		}
 
 		if ($memory !== null) {
-			$args[] = "--memory {$memory}";
+			$args[] = '--memory';
+			$args[] = (string) $memory;
 		}
 
 		if ($display !== null) {
-			$args[] = '--display '.escapeshellarg($display);
+			$args[] = '--display';
+			$args[] = $display;
 		}
 
-		return Process::run('tart set '.implode(' ', $args))->throw();
+		return Process::run($args)->throw();
 	}
 
-	protected function tartCmd(string $subcommand, string ...$args): string
+	protected function tartCmd(string $subcommand, string ...$args): array
 	{
-		$escaped = array_map('escapeshellarg', $args);
-
-		return 'tart '.$subcommand.' '.implode(' ', $escaped);
+		return ['tart', $subcommand, ...$args];
 	}
 
 	protected function tart(string $subcommand, string ...$args): mixed
