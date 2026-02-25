@@ -23,6 +23,13 @@ class ProvisioningPipeline
 					'sudo apt-get install -y php8.4 php8.4-cli php8.4-common php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip php8.4-mysql php8.4-redis php8.4-sqlite3 php8.4-bcmath php8.4-gd php8.4-intl',
 				],
 			],
+			'composer' => [
+				'label' => 'Installing Composer',
+				'commands' => [
+					'curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer',
+					'composer --version',
+				],
+			],
 			'nginx' => [
 				'label' => 'Installing Nginx',
 				'commands' => [
