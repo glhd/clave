@@ -18,7 +18,7 @@ class ProvisionCommand extends Command
 		$base_vm = config('clave.base_vm');
 		$image = $this->option('image') ?? config('clave.base_image');
 
-		if ($tart->exists($base_vm) && ! $this->option('force')) {
+		if (! $this->option('force') && $tart->exists($base_vm)) {
 			$this->info("Base image '{$base_vm}' already exists. Use --force to re-provision.");
 
 			return self::SUCCESS;
