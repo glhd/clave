@@ -15,10 +15,6 @@ class SetupClaudeCode implements Step
 	
 	protected string $home;
 	
-	protected array $home_claude_json = [];
-	
-	protected array $home_claude_settings = [];
-	
 	public function __construct(
 		protected SshExecutor $ssh,
 		protected AuthManager $auth,
