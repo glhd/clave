@@ -4,7 +4,6 @@ use App\Data\SessionContext;
 use App\Pipelines\Steps\CheckForUpdates;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-use Laravel\Prompts\Prompt;
 
 function makeUpdateContext(): SessionContext
 {
@@ -24,7 +23,6 @@ test('passes through silently when current version matches latest', function() {
 		]),
 	]);
 
-	Prompt::fake();
 
 	$step = app(CheckForUpdates::class);
 	$context = makeUpdateContext();
@@ -38,20 +36,18 @@ test('passes through silently when current version matches latest', function() {
 
 	expect($next_called)->toBeTrue();
 	expect($result)->toBe($context);
-
-	Prompt::assertStrippedOutputDoesntContain('new version of Clave is available');
+	expect($context->upgrade_version_available)->toBeNull();
 
 	Http::assertSentCount(1);
 });
 
-test('shows update notice when newer version is available', function() {
+test('stores upgrade version when newer version is available', function() {
 	Http::fake([
 		'api.github.com/repos/glhd/clave/releases/latest' => Http::response([
 			'tag_name' => 'v99.99.99',
 		]),
 	]);
 
-	Prompt::fake();
 
 	$step = app(CheckForUpdates::class);
 	$context = makeUpdateContext();
@@ -65,9 +61,7 @@ test('shows update notice when newer version is available', function() {
 
 	expect($next_called)->toBeTrue();
 	expect($result)->toBe($context);
-
-	Prompt::assertStrippedOutputContains('new version of Clave is available');
-	Prompt::assertStrippedOutputContains('v99.99.99');
+	expect($context->upgrade_version_available)->toBe('99.99.99');
 
 	Http::assertSentCount(1);
 });
@@ -75,8 +69,6 @@ test('shows update notice when newer version is available', function() {
 test('passes through silently when the HTTP request fails', function() {
 	Http::fake(fn() => throw new ConnectionException('Connection timed out'));
 
-	Prompt::fake();
-
 	$step = app(CheckForUpdates::class);
 	$context = makeUpdateContext();
 
@@ -89,8 +81,7 @@ test('passes through silently when the HTTP request fails', function() {
 
 	expect($next_called)->toBeTrue();
 	expect($result)->toBe($context);
-
-	Prompt::assertStrippedOutputDoesntContain('new version of Clave is available');
+	expect($context->upgrade_version_available)->toBeNull();
 });
 
 test('passes through silently when response is missing tag_name', function() {
@@ -100,7 +91,6 @@ test('passes through silently when response is missing tag_name', function() {
 		]),
 	]);
 
-	Prompt::fake();
 
 	$step = app(CheckForUpdates::class);
 	$context = makeUpdateContext();
@@ -114,8 +104,7 @@ test('passes through silently when response is missing tag_name', function() {
 
 	expect($next_called)->toBeTrue();
 	expect($result)->toBe($context);
-
-	Prompt::assertStrippedOutputDoesntContain('new version of Clave is available');
+	expect($context->upgrade_version_available)->toBeNull();
 
 	Http::assertSentCount(1);
 });

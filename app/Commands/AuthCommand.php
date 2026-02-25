@@ -38,9 +38,9 @@ class AuthCommand extends Command
 			warning('No authentication configured.');
 			note('Run `clave auth` to set up a Claude Code token.');
 			
-			return self::FAILURE;
+			return self::SUCCESS;
 		}
-		
+
 		$method_label = match ($info['method']) {
 			'api_key' => 'API Key',
 			'oauth' => 'OAuth Token',
