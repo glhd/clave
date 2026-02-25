@@ -72,7 +72,7 @@ class ProvisionCommand extends Command
 			$progress->advance()->hint('Waiting for VM to be ready...');
 			$tart->waitForReady($tmp_name, $ssh, 120);
 			
-			$progress->advance()->hint('Provisioning...');
+			$progress->advance()->hint('Provisioning (may take a while)...');
 			$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs com.apple.virtio-fs.automount /mnt/provision');
 			$ssh->run('sudo bash /mnt/provision/provision.sh', 600);
 			
