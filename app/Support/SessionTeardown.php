@@ -31,6 +31,7 @@ class SessionTeardown
 		
 		$steps = [
 			$this->unproxy(...),
+			$this->killMcpTunnels(...),
 			$this->killTunnel(...),
 			$this->stopVm(...),
 			$this->deleteVm(...),
@@ -63,6 +64,17 @@ class SessionTeardown
 		$progress->hint("Removed Herd proxy: {$context->proxy_name}");
 	}
 	
+	protected function killMcpTunnels(SessionContext $context, Progress $progress): void
+	{
+		if ($context->mcp_tunnel_process === null) {
+			return;
+		}
+
+		$context->mcp_tunnel_process->stop();
+
+		$progress->hint('Stopped MCP tunnels');
+	}
+
 	protected function killTunnel(SessionContext $context, Progress $progress): void
 	{
 		if ($context->tunnel_process === null) {

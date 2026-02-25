@@ -79,6 +79,21 @@ class SshExecutor
 			]);
 	}
 
+	public function reverseTunnels(array $ports): mixed
+	{
+		$args = $this->buildSshArgs();
+		$args[] = '-N';
+
+		foreach ($ports as $port) {
+			$args[] = '-R';
+			$args[] = "{$port}:localhost:{$port}";
+		}
+
+		$args[] = "{$this->user}@{$this->host}";
+
+		return Process::env($this->sshEnv())->start($args);
+	}
+
 	public function test(): bool
 	{
 		try {

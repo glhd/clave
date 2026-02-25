@@ -7,6 +7,7 @@ use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\CheckForUpdates;
 use App\Pipelines\Steps\CloneRepo;
 use App\Pipelines\Steps\CloneVm;
+use App\Pipelines\Steps\CreateMcpTunnels;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
@@ -35,6 +36,7 @@ class SessionSetup extends SessionPipeline
 			CloneVm::class,
 			BootVm::class,
 			SetupClaudeCode::class,
+			CreateMcpTunnels::class,
 		];
 	}
 }
