@@ -35,6 +35,8 @@ class SessionContext
 
 	public array $mcp_tunnel_ports = [];
 
+	public mixed $mcp_tunnel_process = null;
+
 	public function __construct(
 		public readonly string $session_id,
 		public readonly string $project_name,
