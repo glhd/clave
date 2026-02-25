@@ -12,7 +12,7 @@ use App\Pipelines\Steps\GetGitBranch;
 use App\Pipelines\Steps\RunClaudeCode;
 use App\Pipelines\Steps\SaveSession;
 
-class ClaudeCodePipeline extends SessionPipeline
+class SessionSetup extends SessionPipeline
 {
 	protected function label(): string
 	{

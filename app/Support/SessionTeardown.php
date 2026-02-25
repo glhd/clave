@@ -20,7 +20,7 @@ class SessionTeardown
 	
 	protected bool $completed = false;
 	
-	public function run(SessionContext $context): void
+	public function __invoke(SessionContext $context): void
 	{
 		if ($this->completed) {
 			return;

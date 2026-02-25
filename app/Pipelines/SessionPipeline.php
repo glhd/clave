@@ -20,7 +20,7 @@ abstract class SessionPipeline extends Pipeline
 	
 	abstract protected function steps(): array;
 	
-	public function run(SessionContext $context)
+	public function __invoke(SessionContext $context)
 	{
 		$steps = $this->steps();
 		

@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Pipelines\ClaudeCodePipeline;
+use App\Pipelines\SessionSetup;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureVmExists;
@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
 			&& ! $this->app->runningUnitTests()
 			&& extension_loaded('pcntl'));
 		
-		$this->app->singleton(ClaudeCodePipeline::class);
+		$this->app->singleton(SessionSetup::class);
 
 		$this->app->singleton(AuthManager::class);
 		$this->app->singleton(TartManager::class);
