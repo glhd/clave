@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Pipelines\SessionSetup;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\DetectRecipe;
+use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\SaveSession;
 use App\Support\AuthManager;
 use App\Support\ClaveProgress;
+use App\Support\DependencyManager;
 use App\Support\GitManager;
 use App\Support\HerdManager;
 use App\Support\SessionTeardown;
@@ -28,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
 		
 		$fs->ensureDirectoryExists($config_dir);
 	}
-
+	
 	public function register(): void
 	{
 		Signals::resolveAvailabilityUsing(fn() => $this->app->runningInConsole()
@@ -36,7 +38,8 @@ class AppServiceProvider extends ServiceProvider
 			&& extension_loaded('pcntl'));
 		
 		$this->app->singleton(SessionSetup::class);
-
+		
+		$this->app->singleton(DependencyManager::class);
 		$this->app->singleton(AuthManager::class);
 		$this->app->singleton(TartManager::class);
 		$this->app->singleton(GitManager::class);
@@ -45,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(SessionTeardown::class);
 		$this->app->singleton(SaveSession::class);
 		
+		$this->app->singleton(EnsureTartInstalled::class);
 		$this->app->singleton(DetectRecipe::class);
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
