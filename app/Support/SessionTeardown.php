@@ -69,12 +69,12 @@ class SessionTeardown
 		if ($context->mcp_tunnel_process === null) {
 			return;
 		}
-
+		
 		$context->mcp_tunnel_process->stop();
-
+		
 		$progress->hint('Stopped MCP tunnels');
 	}
-
+	
 	protected function killTunnel(SessionContext $context, Progress $progress): void
 	{
 		if ($context->tunnel_process === null) {
