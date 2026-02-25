@@ -97,14 +97,20 @@ class SessionTeardown
 			return;
 		}
 		
+		if (! $this->git->hasChanges($context->clone_path, $context->base_branch)) {
+			$this->git->removeClone($context->clone_path);
+			$progress->hint("Discarded (no changes): {$context->clone_branch}");
+			return;
+		}
+		
 		$action = $context->on_exit;
 		
 		$action ??= OnExit::coerce(select(
 			label: 'What would you like to do with the session changes?',
 			options: OnExit::toSelectArray(),
-			default: OnExit::Keep->value,
+			default: OnExit::Merge->value,
 		));
-
+		
 		match ($action) {
 			OnExit::Merge => $this->git->mergeAndCleanClone(
 				$context->project_dir,
@@ -117,13 +123,13 @@ class SessionTeardown
 			),
 			default => null,
 		};
-
+		
 		$label = match ($action) {
 			OnExit::Merge => 'Merged and cleaned up',
 			OnExit::Discard => 'Discarded',
 			default => 'Kept',
 		};
-
+		
 		$progress->hint("{$label}: {$context->clone_branch}");
 	}
 	

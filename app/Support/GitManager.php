@@ -51,6 +51,21 @@ class GitManager
 		Process::run('rm -rf '.escapeshellarg($real_path));
 	}
 
+	public function hasChanges(string $clone_path, string $base_branch): bool
+	{
+		$escaped_base = escapeshellarg($base_branch);
+
+		$has_uncommitted = trim(
+			Process::path($clone_path)->run('git status --porcelain')->output()
+		) !== '';
+
+		$has_commits = trim(
+			Process::path($clone_path)->run("git log {$escaped_base}..HEAD --oneline")->output()
+		) !== '';
+
+		return $has_uncommitted || $has_commits;
+	}
+
 	public function commitAllChanges(string $clone_path, string $message): bool
 	{
 		Process::path($clone_path)->run('git add -A');
