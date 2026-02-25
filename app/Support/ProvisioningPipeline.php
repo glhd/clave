@@ -45,6 +45,13 @@ class ProvisioningPipeline
 					'sudo -H -u admin bash -l -c "claude --version"',
 				],
 			],
+			'git' => [
+				'label' => 'Configuring git',
+				'commands' => [
+					'git config --global user.name "Clave"',
+					'git config --global user.email "noreply@clave.run"',
+				],
+			],
 			'laravelDirectories' => [
 				'label' => 'Creating Laravel directories',
 				'commands' => [

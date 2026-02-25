@@ -81,7 +81,7 @@ class GitManager
 
 	public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): void
 	{
-		$this->commitAllChanges($clone_path, 'WIP: auto-commit from clave session');
+		$this->commitAllChanges($clone_path, 'WIP');
 
 		Process::path($repo_path)
 			->run(['git', 'fetch', $clone_path, $clone_branch])
