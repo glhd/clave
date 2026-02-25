@@ -75,9 +75,9 @@ class DefaultCommand extends Command
 			session_id: Str::random(8),
 			project_name: $project_name,
 			project_dir: $project_dir,
+			isolate: (bool) $this->option('isolate'),
 			on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
 			command: $this,
-			isolate: (bool) $this->option('isolate'),
 		);
 	}
 }

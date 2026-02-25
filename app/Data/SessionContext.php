@@ -37,9 +37,9 @@ class SessionContext
 		public readonly string $session_id,
 		public readonly string $project_name,
 		public readonly string $project_dir,
+		public bool $isolate = false,
 		public ?OnExit $on_exit = null,
 		public ?Command $command = null,
-		public readonly bool $isolate = false,
 	) {
 	}
 	
