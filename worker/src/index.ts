@@ -79,8 +79,8 @@ export default {
 		const ua = request.headers.get('user-agent') || '';
 		
 		if (CLI_USER_AGENTS.some((prefix) => ua.includes(prefix))) {
-			return new Response(SCRIPT, {
-				headers: {'content-type': 'text/plain; charset=utf-8'},
+			return new Response(SCRIPT.trimStart(), {
+				headers: {'content-type': 'text/x-sh; charset=utf-8'},
 			});
 		}
 		

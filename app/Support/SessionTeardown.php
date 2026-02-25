@@ -8,6 +8,7 @@ use App\Models\Session;
 use Laravel\Prompts\Progress;
 use function Laravel\Prompts\progress;
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\warning;
 
 class SessionTeardown
 {
@@ -45,6 +46,10 @@ class SessionTeardown
 		}
 		
 		$progress->finish();
+		
+		if ($context->upgrade_version_available) {
+			warning("A new version of Clave is available (v{$context->upgrade_version_available}). Update with:\n\n  curl -fsSL https://clave.run | sh");
+		}
 	}
 	
 	protected function unproxy(SessionContext $context, Progress $progress): void

@@ -22,7 +22,7 @@ class CheckForUpdates implements Step
 			$current_version = ltrim(config('app.version'), 'v');
 
 			if ($latest_version && version_compare($current_version, $latest_version, '<')) {
-				warning("A new version of Clave is available (v{$latest_version}). Update with:\n  curl -fsSL https://clave.run | sh");
+				$context->upgrade_version_available = $latest_version;
 			}
 		} catch (\Throwable) {
 			// Silently ignore network failures

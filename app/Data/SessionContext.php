@@ -9,6 +9,8 @@ use LaravelZero\Framework\Commands\Command;
 
 class SessionContext
 {
+	public ?string $upgrade_version_available = null;
+	
 	public ?string $base_branch = null;
 	
 	public ?string $vm_name = null;

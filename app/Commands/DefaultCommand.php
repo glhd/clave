@@ -34,9 +34,10 @@ class DefaultCommand extends Command
 			
 			$this->callSilently('migrate', ['--force' => true]);
 			
+			$version = config('app.version');
 			$context = $this->newContext();
 			
-			note("Clave session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info>");
+			note("Clave {$version} session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info>");
 			
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown($context));
 			
