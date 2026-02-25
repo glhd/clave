@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Process;
+use InvalidArgumentException;
 
 class GitManager
 {
@@ -40,9 +41,14 @@ class GitManager
 
 	public function removeClone(string $clone_path): void
 	{
-		if (is_dir($clone_path)) {
-			Process::run('rm -rf '.escapeshellarg($clone_path));
+		$real_path = realpath($clone_path);
+		$repos_dir = rtrim($_SERVER['HOME'], '/').'/.clave/repos';
+
+		if ($real_path === false || ! str_starts_with($real_path, $repos_dir.'/')) {
+			throw new InvalidArgumentException("The path '{$clone_path}' is outside of '{$repos_dir}'");
 		}
+
+		Process::run('rm -rf '.escapeshellarg($real_path));
 	}
 
 	public function commitAllChanges(string $clone_path, string $message): bool
