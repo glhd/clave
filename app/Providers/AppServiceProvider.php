@@ -6,11 +6,13 @@ use App\Pipelines\ClaudeCodePipeline;
 use App\Pipelines\PreflightPipeline;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\DetectRecipe;
+use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\SaveSession;
 use App\Support\AuthManager;
 use App\Support\GitManager;
 use App\Support\HerdManager;
+use App\Support\InstallationManager;
 use App\Support\SessionTeardown;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(ClaudeCodePipeline::class);
 
 		$this->app->singleton(AuthManager::class);
+		$this->app->singleton(InstallationManager::class);
 		$this->app->singleton(TartManager::class);
 		$this->app->singleton(GitManager::class);
 		$this->app->singleton(SshExecutor::class);
@@ -47,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(SaveSession::class);
 		
 		$this->app->singleton(DetectRecipe::class);
+		$this->app->singleton(EnsureTartInstalled::class);
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
 	}
