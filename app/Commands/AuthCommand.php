@@ -71,13 +71,18 @@ class AuthCommand extends Command
 	protected function runSetup(AuthManager $auth): int
 	{
 		$progress = Progress::start('Setting up authentication', 1);
+		$progress->hint('Authenticating in Claude Code...');
 		
 		try {
+			Progress::suspend();
+			
 			if (! $auth->setupToken()) {
 				error('Authentication setup failed. Ensure `claude` CLI is installed and try again.');
 				
 				return self::FAILURE;
 			}
+			
+			Progress::resume();
 			
 			$progress->advance()->hint('Authentication configured');
 			

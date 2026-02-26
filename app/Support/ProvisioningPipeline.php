@@ -65,6 +65,19 @@ class ProvisioningPipeline
 					'git config --global user.email "noreply@clave.run"',
 				],
 			],
+			'laravelDirectories' => [
+				'label' => 'Creating Laravel directories',
+				'commands' => [
+					'sudo mkdir -p /srv/project',
+					'sudo chown -R admin:admin /srv/project',
+				],
+			],
+			'virtiofsMounts' => [
+				'label' => 'Configuring VirtioFS mounts',
+				'commands' => [
+					'echo "com.apple.virtio-fs.automount /srv/project virtiofs rw,nofail 0 0" | sudo tee -a /etc/fstab',
+				],
+			],
 		];
 	}
 

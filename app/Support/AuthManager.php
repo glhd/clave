@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use Illuminate\Support\Facades\Process;
 use function Laravel\Prompts\textarea;
 
 class AuthManager
@@ -67,27 +66,33 @@ class AuthManager
 	
 	public function setupToken(): bool
 	{
-		$result = Process::tty()
-			->timeout(0)
-			->run('claude setup-token');
-
-		if ($result->exitCode() !== 0) {
+		// $result = Process::tty()
+		// 	->timeout(0)
+		// 	->run('claude setup-token');
+		//
+		// if ($result->exitCode() !== 0) {
+		// 	return false;
+		// }
+		
+		$exit_code = 0;
+		passthru('claude setup-token', $exit_code);
+		if ($exit_code !== 0) {
 			return false;
 		}
-
+		
 		$token = textarea(
 			label: 'Paste the OAuth token shown above (it may wrap across multiple lines)',
 			placeholder: 'sk-ant-oat01-...',
 			rows: 3,
 			validate: function(string $value) {
 				$cleaned = preg_replace('/\s+/', '', $value);
-
+				
 				return str_starts_with($cleaned, 'sk-ant-')
 					? null
 					: 'Token should start with sk-ant-';
 			},
 		);
-
+		
 		return $this->storeToken(preg_replace('/\s+/', '', $token));
 	}
 	
@@ -118,21 +123,21 @@ class AuthManager
 		if (! $token) {
 			return false;
 		}
-
+		
 		$auth_file = config('clave.auth_file');
 		$auth_dir = dirname($auth_file);
-
+		
 		if (! is_dir($auth_dir)) {
 			mkdir($auth_dir, 0700, true);
 		}
-
+		
 		$data = [
 			'token' => $token,
 			'stored_at' => date('c'),
 		];
-
+		
 		file_put_contents($auth_file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
-
+		
 		return true;
 	}
 }

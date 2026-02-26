@@ -9,10 +9,10 @@ use App\Exceptions\AbortedPipelineException;
 use App\Pipelines\SessionSetup;
 use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
+use LaravelZero\Framework\Commands\Command;
 use function Laravel\Prompts\clear;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\note;
-use LaravelZero\Framework\Commands\Command;
 
 class DefaultCommand extends Command
 {

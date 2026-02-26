@@ -49,23 +49,27 @@ class BootVm implements Step
 		$mount_timeout = 30;
 		$start = time();
 		$last_error = '';
-		
-		$mount_point = $context->project_dir;
-		
+
+		$mount_point = '/srv/project';
+		$project_dir = $context->project_dir;
+
 		$this->ssh->run("sudo mkdir -p {$mount_point}");
 		$this->ssh->run("sudo chown -R admin:admin {$mount_point}");
-		
+
 		while (time() - $start < $mount_timeout) {
 			try {
 				$result = $this->ssh->run("sudo mount -t virtiofs com.apple.virtio-fs.automount {$mount_point} 2>&1; true");
 				$output = trim($result->output());
-				
+
 				if ($output && $output !== $last_error) {
 					$last_error = $output;
 				}
-				
+
 				$this->ssh->run("mountpoint -q {$mount_point}");
-				
+
+				$this->ssh->run("sudo mkdir -p {$project_dir}");
+				$this->ssh->run("sudo mount --bind {$mount_point} {$project_dir}");
+
 				return;
 			} catch (Throwable) {
 				$elapsed = time() - $start;
@@ -73,9 +77,9 @@ class BootVm implements Step
 				sleep(2);
 			}
 		}
-		
+
 		$diag = $last_error;
-		
+
 		try {
 			$result = $this->ssh->run(implode("\n", [
 				"echo '=== {$mount_point} ==='",
@@ -91,7 +95,7 @@ class BootVm implements Step
 			$diag .= "\n".$result->output();
 		} catch (Throwable) {
 		}
-		
+
 		throw new RuntimeException(
 			"Timed out after {$mount_timeout}s waiting for VirtioFS mount on VM '{$context->vm_name}'"
 			.($diag ? "\nDiagnostics:\n{$diag}" : '')
