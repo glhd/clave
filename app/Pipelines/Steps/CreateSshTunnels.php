@@ -6,7 +6,7 @@ use App\Data\SessionContext;
 use App\Support\SshExecutor;
 use Closure;
 
-class CreateMcpTunnels implements Step
+class CreateSshTunnels implements Step
 {
 	use ProvidesProgressHints;
 	
@@ -17,13 +17,13 @@ class CreateMcpTunnels implements Step
 	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		if (empty($context->mcp_tunnel_ports)) {
+		if (empty($context->tunnel_ports)) {
 			return $next($context);
 		}
 		
 		$this->hint('Creating MCP tunnels...');
 		
-		$context->mcp_tunnel_process = $this->ssh->reverseTunnels($context->mcp_tunnel_ports);
+		$context->tunnel_process = $this->ssh->startTunnels($context->tunnel_ports);
 		
 		return $next($context);
 	}

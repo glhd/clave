@@ -1,7 +1,7 @@
 <?php
 
 use App\Data\SessionContext;
-use App\Pipelines\Steps\CreateMcpTunnels;
+use App\Pipelines\Steps\CreateSshTunnels;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 
@@ -17,8 +17,9 @@ function makeTunnelContext(): SessionContext
 test('skips when no mcp tunnel ports', function() {
 	Process::fake();
 
-	$step = app(CreateMcpTunnels::class);
+	$step = app(CreateSshTunnels::class);
 	$context = makeTunnelContext();
+	$context->tunnel_ports = [];
 
 	$next_called = false;
 	$step->handle($context, function($ctx) use (&$next_called) {
@@ -28,7 +29,7 @@ test('skips when no mcp tunnel ports', function() {
 	});
 
 	expect($next_called)->toBeTrue();
-	expect($context->mcp_tunnel_process)->toBeNull();
+	expect($context->tunnel_process)->toBeNull();
 
 	Process::assertNothingRan();
 });
@@ -36,9 +37,9 @@ test('skips when no mcp tunnel ports', function() {
 test('creates reverse tunnels for mcp ports', function() {
 	Process::fake();
 
-	$step = app(CreateMcpTunnels::class);
+	$step = app(CreateSshTunnels::class);
 	$context = makeTunnelContext();
-	$context->mcp_tunnel_ports = [8080, 9090];
+	$context->tunnel_ports = [8080, 9090];
 
 	app(\App\Support\SshExecutor::class)->setHost('192.168.64.5');
 
@@ -50,7 +51,7 @@ test('creates reverse tunnels for mcp ports', function() {
 	});
 
 	expect($next_called)->toBeTrue();
-	expect($context->mcp_tunnel_process)->not->toBeNull();
+	expect($context->tunnel_process)->not->toBeNull();
 
 	Process::assertRan(
 		fn(PendingProcess $process) => in_array('-R', $process->command)

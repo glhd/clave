@@ -32,12 +32,10 @@ test('mutable properties default to null', function() {
 		->and($context->clone_path)->toBeNull()
 		->and($context->clone_branch)->toBeNull()
 		->and($context->proxy_name)->toBeNull()
-		->and($context->tunnel_port)->toBeNull()
-		->and($context->tunnel_process)->toBeNull()
 		->and($context->services)->toBeNull()
 		->and($context->on_exit)->toBeNull()
-		->and($context->mcp_tunnel_ports)->toBe([])
-		->and($context->mcp_tunnel_process)->toBeNull();
+		->and($context->tunnel_ports)->toBe([80, 8080, 3306, 6379])
+		->and($context->tunnel_process)->toBeNull();
 });
 
 test('mutable properties can be set', function() {

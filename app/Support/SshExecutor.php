@@ -69,19 +69,7 @@ class SshExecutor
 		return $result->exitCode();
 	}
 	
-	public function tunnel(int $local_port, string $remote_host, int $remote_port): mixed
-	{
-		return Process::env($this->sshEnv())
-			->start([
-				...$this->buildSshArgs(),
-				'-N',
-				'-L',
-				"{$local_port}:{$remote_host}:{$remote_port}",
-				"{$this->user}@{$this->host}",
-			]);
-	}
-	
-	public function reverseTunnels(array $ports): mixed
+	public function startTunnels(array $ports): mixed
 	{
 		$args = $this->buildSshArgs();
 		$args[] = '-N';

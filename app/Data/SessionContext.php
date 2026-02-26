@@ -23,19 +23,15 @@ class SessionContext
 	
 	public ?string $proxy_name = null;
 	
-	public ?int $tunnel_port = null;
-	
-	public ?InvokedProcess $tunnel_process = null;
-	
 	public ?ServiceConfig $services = null;
 	
 	public Recipe $recipe = Recipe::Unknown;
 
 	public ?Session $session = null;
 
-	public array $mcp_tunnel_ports = [];
+	public array $tunnel_ports = [80, 8080, 3306, 6379];
 
-	public mixed $mcp_tunnel_process = null;
+	public mixed $tunnel_process = null;
 
 	public function __construct(
 		public readonly string $session_id,

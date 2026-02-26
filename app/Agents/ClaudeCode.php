@@ -16,8 +16,6 @@ class ClaudeCode
 	
 	public function __invoke(SessionContext $context): void
 	{
-		$project_dir = '/srv/project';
-		
 		$env = '';
 		if ($resolved = $this->auth->resolve()) {
 			$env_var = match ($resolved['type']) {
@@ -27,7 +25,7 @@ class ClaudeCode
 			$env = $env_var.'='.$resolved['value'].' ';
 		}
 		
-		$inner = "cd {$project_dir} && {$env}claude --dangerously-skip-permissions";
+		$inner = "cd {$context->project_dir} && {$env}claude --dangerously-skip-permissions";
 		
 		$this->ssh->interactive('bash -l -c '.escapeshellarg($inner));
 	}

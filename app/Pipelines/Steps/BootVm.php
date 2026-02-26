@@ -50,18 +50,21 @@ class BootVm implements Step
 		$start = time();
 		$last_error = '';
 		
-		$this->ssh->run('sudo mkdir -p /srv/project');
+		$mount_point = $context->project_dir;
+		
+		$this->ssh->run("sudo mkdir -p {$mount_point}");
+		$this->ssh->run("sudo chown -R admin:admin {$mount_point}");
 		
 		while (time() - $start < $mount_timeout) {
 			try {
-				$result = $this->ssh->run('sudo mount -t virtiofs com.apple.virtio-fs.automount /srv/project 2>&1; true');
+				$result = $this->ssh->run("sudo mount -t virtiofs com.apple.virtio-fs.automount {$mount_point} 2>&1; true");
 				$output = trim($result->output());
 				
 				if ($output && $output !== $last_error) {
 					$last_error = $output;
 				}
 				
-				$this->ssh->run('mountpoint -q /srv/project');
+				$this->ssh->run("mountpoint -q {$mount_point}");
 				
 				return;
 			} catch (Throwable) {
@@ -75,8 +78,8 @@ class BootVm implements Step
 		
 		try {
 			$result = $this->ssh->run(implode("\n", [
-				'echo "=== /srv/project ==="',
-				'ls -la /srv/ 2>&1',
+				"echo '=== {$mount_point} ==='",
+				"ls -la {$mount_point} 2>&1",
 				'echo "=== fstab ==="',
 				'cat /etc/fstab 2>&1',
 				'echo "=== current mounts ==="',

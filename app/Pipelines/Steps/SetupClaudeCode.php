@@ -32,7 +32,7 @@ class SetupClaudeCode implements Step
 		
 		$this->writeConfigFiles($config, $settings, $md, $this->auth->resolve());
 		
-		$context->mcp_tunnel_ports = $this->extractMcpPorts($config);
+		$context->tunnel_ports = array_unique(array_merge($context->tunnel_ports, $this->extractMcpPorts($config)));
 		
 		return $next($context);
 	}
