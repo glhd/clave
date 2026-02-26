@@ -9,7 +9,7 @@ class TartManager
 {
 	public function clone(string $source, string $name): mixed
 	{
-		return $this->tart('clone', $source, $name)->throw();
+		return $this->tart('clone', 0, $source, $name)->throw();
 	}
 
 	public function runBackground(string $name, array $dirs = [], bool $no_graphics = true): mixed
@@ -59,7 +59,7 @@ class TartManager
 
 	public function exists(string $name): bool
 	{
-		return $this->tart('get', $name)->successful();
+		return $this->tart('get', 60, $name)->successful();
 	}
 
 	public function list(): array
@@ -76,7 +76,7 @@ class TartManager
 
 	public function rename(string $old_name, string $new_name): mixed
 	{
-		return $this->tart('rename', $old_name, $new_name)->throw();
+		return $this->tart('rename', 60, $old_name, $new_name)->throw();
 	}
 
 	public function set(string $name, ?int $cpus = null, ?int $memory = null, ?string $display = null): mixed
@@ -106,9 +106,9 @@ class TartManager
 		return ['tart', $subcommand, ...$args];
 	}
 
-	protected function tart(string $subcommand, string ...$args): mixed
+	protected function tart(string $subcommand, int $timeout, string ...$args): mixed
 	{
-		return Process::run($this->tartCmd($subcommand, ...$args));
+		return Process::timeout($timeout)->run($this->tartCmd($subcommand, ...$args));
 	}
 
 	public function waitForReady(string $name, SshExecutor $ssh, int $timeout = 90): void
