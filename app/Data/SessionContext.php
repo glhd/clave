@@ -10,7 +10,9 @@ use LaravelZero\Framework\Commands\Command;
 class SessionContext
 {
 	public ?string $upgrade_version_available = null;
-	
+
+	public ProjectConfig $project_config;
+
 	public ?string $base_branch = null;
 	
 	public ?string $vm_name = null;
@@ -45,6 +47,7 @@ class SessionContext
 		public ?OnExit $on_exit = null,
 		public ?Command $command = null,
 	) {
+		$this->project_config = new ProjectConfig();
 	}
 	
 	public function abort(string $message): never

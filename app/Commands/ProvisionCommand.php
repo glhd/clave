@@ -3,20 +3,23 @@
 namespace App\Commands;
 
 use App\Facades\Progress;
-use App\Support\ClaveProgress;
 use App\Support\ProvisioningPipeline;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
-use LaravelZero\Framework\Commands\Command;
-use Throwable;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\warning;
+use LaravelZero\Framework\Commands\Command;
+use Throwable;
 
 class ProvisionCommand extends Command
 {
-	protected $signature = 'provision {--force : Re-provision even if base image exists} {--image= : OCI image to pull}';
+	protected $signature = 'provision
+		{--force : Re-provision even if base image exists}
+		{--image= : OCI image to pull}
+		{--base-vm= : Name for the provisioned base VM}
+		{--provision= : JSON array of extra provisioning commands}';
 	
 	protected $description = 'Provision the base VM image for Clave sessions';
 	
@@ -25,8 +28,8 @@ class ProvisionCommand extends Command
 		SshExecutor $ssh,
 		Filesystem $fs,
 	): int {
-		$base_vm = config('clave.base_vm');
-		
+		$base_vm = $this->option('base-vm') ?? config('clave.base_vm');
+
 		if (! $this->option('force') && $tart->exists($base_vm)) {
 			note("Base image '{$base_vm}' already exists. Use --force to re-provision.");
 			
@@ -62,9 +65,13 @@ class ProvisionCommand extends Command
 			
 			$ssh->usePassword(config('clave.ssh.password'));
 			
+			$extra_provision = $this->option('provision')
+				? json_decode($this->option('provision'), true) ?? []
+				: [];
+
 			$script_dir = sys_get_temp_dir().'/clave-provision-'.$tmp_id;
 			$fs->ensureDirectoryExists($script_dir, 0700);
-			$fs->put("{$script_dir}/provision.sh", ProvisioningPipeline::toScript());
+			$fs->put("{$script_dir}/provision.sh", ProvisioningPipeline::toScript($extra_provision));
 			
 			$progress->advance()->hint('Booting VM...');
 			$tart->runBackground($tmp_name, [$script_dir]);

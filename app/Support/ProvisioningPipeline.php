@@ -75,13 +75,21 @@ class ProvisioningPipeline
 		];
 	}
 
-	public static function toScript(): string
+	public static function toScript(array $extra_commands = []): string
 	{
 		$lines = ['#!/usr/bin/env bash', 'set -euo pipefail', ''];
 
 		foreach (static::steps() as $step) {
 			$lines[] = "echo '==> {$step['label']}...'";
 			foreach ($step['commands'] as $command) {
+				$lines[] = $command;
+			}
+			$lines[] = '';
+		}
+
+		if ($extra_commands) {
+			$lines[] = "echo '==> Running project provisioning...'";
+			foreach ($extra_commands as $command) {
 				$lines[] = $command;
 			}
 			$lines[] = '';
