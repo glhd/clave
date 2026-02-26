@@ -17,7 +17,7 @@ class CloneVm implements Step
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$vm_name = "clave-{$context->session_id}";
-		$base_vm = config('clave.base_vm');
+		$base_vm = $context->project_config->baseVmName();
 		
 		$this->hint("Cloning VM '{$base_vm}'...");
 		$this->tart->clone($base_vm, $vm_name);

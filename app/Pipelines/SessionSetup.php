@@ -12,6 +12,7 @@ use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
+use App\Pipelines\Steps\LoadProjectConfig;
 use App\Pipelines\Steps\SaveSession;
 use App\Pipelines\Steps\SetupClaudeCode;
 
@@ -28,6 +29,7 @@ class SessionSetup extends SessionPipeline
 			CheckForUpdates::class,
 			EnsureTartInstalled::class,
 			DetectRecipe::class,
+			LoadProjectConfig::class,
 			GetGitBranch::class,
 			EnsureVmExists::class,
 			CheckClaudeAuthentication::class,
