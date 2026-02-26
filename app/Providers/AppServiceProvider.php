@@ -9,7 +9,6 @@ use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\SaveSession;
 use App\Support\AuthManager;
-use App\Support\ClaveProgress;
 use App\Support\DependencyManager;
 use App\Support\GitManager;
 use App\Support\HerdManager;
@@ -52,7 +51,5 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(DetectRecipe::class);
 		$this->app->singleton(EnsureVmExists::class);
 		$this->app->singleton(CheckClaudeAuthentication::class);
-		
-		$this->app->singleton(ClaveProgress::class);
 	}
 }

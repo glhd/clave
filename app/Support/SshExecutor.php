@@ -61,12 +61,17 @@ class SshExecutor
 	
 	public function interactive(string $command): int
 	{
-		$result = Process::env($this->sshEnv())
-			->tty()
-			->timeout(0)
-			->run($this->buildCommandArgs($command, tty: true));
-		
-		return $result->exitCode();
+		$args = $this->buildCommandArgs($command, tty: true);
+		$cmd = implode(' ', array_map('escapeshellarg', $args));
+
+		$env_prefix = '';
+		foreach ($this->sshEnv() as $key => $value) {
+			$env_prefix .= "{$key}=".escapeshellarg($value).' ';
+		}
+
+		passthru($env_prefix.$cmd, $exit_code);
+
+		return $exit_code;
 	}
 	
 	public function startTunnels(array $ports): mixed
