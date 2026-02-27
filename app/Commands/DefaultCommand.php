@@ -42,7 +42,7 @@ class DefaultCommand extends Command
 			$version = config('app.version');
 			$context = $this->newContext();
 			
-			note("Clave {$version} session {$this->cyan($context->session_id)} in project {$this->cyan($context->project_name)}");
+			header("Clave {$version} session {$this->cyan($context->session_id)} in project {$this->cyan($context->project_name)}");
 
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown($context));
 
