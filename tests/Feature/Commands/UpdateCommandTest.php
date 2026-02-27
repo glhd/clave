@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Http;
 
 test('bails when not running as a PHAR', function() {
 	$this->artisan('update')
-		->expectsOutputToContain('Not running as a PHAR')
+		->expectsOutputToContain('self-update is not available')
 		->assertFailed();
 });
 
@@ -47,7 +47,7 @@ test('fails when API response is missing tag_name', function() {
 	config()->set('clave.phar_path', '/usr/local/bin/clave');
 
 	$this->artisan('update')
-		->expectsOutputToContain('Unexpected response from GitHub')
+		->expectsOutputToContain('self-update is not available')
 		->assertFailed();
 
 	Http::assertSentCount(1);
