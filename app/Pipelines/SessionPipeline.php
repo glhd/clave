@@ -19,8 +19,6 @@ abstract class SessionPipeline extends Pipeline
 
 	public function __invoke(SessionContext $context)
 	{
-		header($this->label());
-
 		return $this->send($context)->through($this->steps())->thenReturn();
 	}
 

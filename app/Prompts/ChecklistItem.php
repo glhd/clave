@@ -75,7 +75,7 @@ class ChecklistItem extends Prompt
 			
 			if ($this->item) {
 				$bullet = $item->complete ? '■' : '□';
-				$output .= $this->yellow("  {$bullet} {$item->item}");
+				$output .= $this->yellow("   {$bullet} {$item->item}");
 				$output .= PHP_EOL;
 			}
 			

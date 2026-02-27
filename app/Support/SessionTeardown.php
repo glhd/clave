@@ -2,10 +2,11 @@
 
 namespace App\Support;
 
+use App\Prompts\ChecklistItem;
+use function App\checklist;
+use function App\header;
 use App\Data\OnExit;
 use App\Data\SessionContext;
-use function App\header;
-use function Laravel\Prompts\note;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\warning;
 
@@ -41,15 +42,19 @@ class SessionTeardown
 		}
 	}
 
+	protected function checklist(string $item): ChecklistItem
+	{
+		return checklist('Cleaning up virtual machine', $item);
+	}
+
 	protected function unproxy(SessionContext $context): void
 	{
 		if (! $context->proxy_name) {
 			return;
 		}
 
-		$this->herd->unproxy($context->proxy_name);
-
-		note("Removed Herd proxy: {$context->proxy_name}");
+		$this->checklist('Removing Herd proxy...')
+			->run(fn() => $this->herd->unproxy($context->proxy_name));
 	}
 
 	protected function killTunnels(SessionContext $context): void
@@ -58,9 +63,8 @@ class SessionTeardown
 			return;
 		}
 
-		$context->tunnel_process->stop();
-
-		note('Stopped MCP tunnels');
+		$this->checklist('Stopping MCP tunnels...')
+			->run(fn() => $context->tunnel_process->stop());
 	}
 
 	protected function stopVm(SessionContext $context): void
@@ -69,9 +73,8 @@ class SessionTeardown
 			return;
 		}
 
-		$this->tart->stop($context->vm_name);
-
-		note("Stopped VM: {$context->vm_name}");
+		$this->checklist('Stopping VM...')
+			->run(fn() => $this->tart->stop($context->vm_name));
 	}
 
 	protected function deleteVm(SessionContext $context): void
@@ -80,9 +83,8 @@ class SessionTeardown
 			return;
 		}
 
-		$this->tart->delete($context->vm_name);
-
-		note("Deleted VM: {$context->vm_name}");
+		$this->checklist('Deleting VM...')
+			->run(fn() => $this->tart->delete($context->vm_name));
 	}
 
 	protected function handleClone(SessionContext $context): void
@@ -92,8 +94,8 @@ class SessionTeardown
 		}
 
 		if (! $this->git->hasChanges($context->clone_path, $context->base_branch)) {
-			$this->git->removeClone($context->clone_path);
-			note("Discarded (no changes): {$context->clone_branch}");
+			$this->checklist('Discarding clone (no changes)...')
+				->run(fn() => $this->git->removeClone($context->clone_path));
 			return;
 		}
 
@@ -105,26 +107,24 @@ class SessionTeardown
 			default: OnExit::Merge->value,
 		));
 
-		match ($action) {
-			OnExit::Merge => $this->git->mergeAndCleanClone(
-				$context->project_dir,
-				$context->clone_path,
-				$context->clone_branch,
-				$context->base_branch,
-			),
-			OnExit::Discard => $this->git->removeClone(
-				$context->clone_path,
-			),
-			default => null,
-		};
-
 		$label = match ($action) {
-			OnExit::Merge => 'Merged and cleaned up',
-			OnExit::Discard => 'Discarded',
-			default => 'Kept',
+			OnExit::Merge => 'Merging and cleaning up clone...',
+			OnExit::Discard => 'Discarding clone...',
+			default => 'Keeping clone branch',
 		};
 
-		note("{$label}: {$context->clone_branch}");
+		$this->checklist($label)
+			->run(fn() => match ($action) {
+				OnExit::Merge => $this->git->mergeAndCleanClone(
+					$context->project_dir,
+					$context->clone_path,
+					$context->clone_branch,
+					$context->base_branch,
+				),
+				OnExit::Discard => $this->git->removeClone(
+					$context->clone_path,
+				),
+				default => null,
+			});
 	}
-
 }

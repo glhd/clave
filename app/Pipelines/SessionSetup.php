@@ -19,7 +19,7 @@ class SessionSetup extends SessionPipeline
 {
 	protected function label(): string
 	{
-		return 'Starting Session';
+		return 'Setting up virtual machine';
 	}
 	
 	protected function steps(): array

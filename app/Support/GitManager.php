@@ -35,7 +35,7 @@ class GitManager
 			->throw();
 	}
 
-	public function removeClone(string $clone_path): void
+	public function removeClone(string $clone_path): true
 	{
 		$real_path = realpath($clone_path);
 		$repos_dir = rtrim($_SERVER['HOME'], '/').'/.clave/repos';
@@ -45,6 +45,8 @@ class GitManager
 		}
 
 		Process::run(['rm', '-rf', $real_path]);
+		
+		return true;
 	}
 
 	public function hasChanges(string $clone_path, string $base_branch): bool
@@ -79,7 +81,7 @@ class GitManager
 		return true;
 	}
 
-	public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): void
+	public function mergeAndCleanClone(string $repo_path, string $clone_path, string $clone_branch, string $base_branch): true
 	{
 		$this->commitAllChanges($clone_path, 'WIP');
 
@@ -96,5 +98,7 @@ class GitManager
 			->throw();
 
 		$this->removeClone($clone_path);
+		
+		return true;
 	}
 }
