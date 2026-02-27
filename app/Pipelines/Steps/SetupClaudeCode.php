@@ -7,6 +7,7 @@ use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Arr;
 use Throwable;
 
 class SetupClaudeCode extends Step
@@ -28,7 +29,7 @@ class SetupClaudeCode extends Step
 				$settings = $this->readConfig('.claude/settings.json');
 				$md = $this->readConfig('.claude/CLAUDE.md');
 
-				$this->writeConfigFiles($config, $settings, $md, $this->auth->resolve());
+				$this->writeConfigFiles($context, $config, $settings, $md, $this->auth->resolve());
 
 				$context->tunnel_ports = array_unique(array_merge($context->tunnel_ports, $this->extractMcpPorts($config)));
 			});
@@ -53,7 +54,7 @@ class SetupClaudeCode extends Step
 		}
 	}
 	
-	protected function writeConfigFiles(array $config, array $settings, string $md, ?array $auth): void
+	protected function writeConfigFiles(SessionContext $context, array $config, array $settings, string $md, ?array $auth): void
 	{
 		$claude_json = array_filter([
 			'autoUpdates' => $config['autoUpdates'] ?? null,
@@ -62,6 +63,13 @@ class SetupClaudeCode extends Step
 			'theme' => $config['theme'] ?? 'light',
 			'hasCompletedOnboarding' => true,
 			'shiftEnterKeyBindingInstalled' => true,
+			'projects' => [
+				$context->project_dir => [
+					'allowedTools' => Arr::get($config, "projects.{$context->project_dir}.allowedTools", []),
+					'hasTrustDialogAccepted' => true,
+					'hasCompletedProjectOnboarding' => true,
+				],
+			],
 		], fn($value) => $value !== null);
 		
 		$settings_json = array_filter([
