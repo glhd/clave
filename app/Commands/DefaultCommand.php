@@ -9,7 +9,7 @@ use function App\clear_screen;
 use App\Data\OnExit;
 use App\Data\SessionContext;
 use App\Exceptions\AbortedPipelineException;
-use function App\header;
+use function App\heading;
 use App\Pipelines\SessionSetup;
 use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
@@ -42,14 +42,14 @@ class DefaultCommand extends Command
 			$version = config('app.version');
 			$context = $this->newContext();
 			
-			header("Clave {$version} session {$this->cyan($context->session_id)} in project {$this->cyan($context->project_name)}");
+			heading("Clave {$version} session {$this->cyan($context->session_id)} in project {$this->cyan($context->project_name)}");
 
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown($context));
 
 			try {
 				$setup($context);
 				
-				header('Launching agent');
+				heading('Launching agent');
 				clear_screen();
 				$agent($context);
 			} finally {

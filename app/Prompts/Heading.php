@@ -5,7 +5,7 @@ namespace App\Prompts;
 use App\Prompts\Renderers\HeaderRenderer;
 use Laravel\Prompts\Prompt;
 
-class Header extends Prompt
+class Heading extends Prompt
 {
 	public function __construct(
 		public string $message

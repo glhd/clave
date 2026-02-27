@@ -2,12 +2,12 @@
 
 namespace App\Prompts\Renderers;
 
-use App\Prompts\Header;
+use App\Prompts\Heading;
 use Laravel\Prompts\Themes\Default\Renderer;
 
 class HeaderRenderer extends Renderer
 {
-	public function __invoke(Header $header): string
+	public function __invoke(Heading $header): string
 	{
 		$width = $header->terminal()->cols() - 6;
 		$lines = explode(PHP_EOL, $this->mbWordwrap($header->message, $width - 2));

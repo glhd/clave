@@ -3,11 +3,11 @@
 namespace App;
 
 use App\Prompts\ChecklistItem;
-use App\Prompts\Header;
+use App\Prompts\Heading;
 
-function header(string $header)
+function heading(string $header): void
 {
-	(new Header($header))->display();
+	(new Heading($header))->display();
 }
 
 function checklist(string $title, ?string $item = null, bool $complete = false): ChecklistItem

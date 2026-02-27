@@ -5,7 +5,7 @@ namespace App\Pipelines;
 use App\Data\SessionContext;
 use App\Prompts\ChecklistItem;
 use function App\checklist;
-use function App\header;
+use function App\heading;
 use App\Pipelines\Steps\Step;
 use Closure;
 use Illuminate\Pipeline\Pipeline;

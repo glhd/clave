@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Prompts\ChecklistItem;
 use function App\checklist;
-use function App\header;
+use function App\heading;
 use App\Data\OnExit;
 use App\Data\SessionContext;
 use function Laravel\Prompts\select;
@@ -29,7 +29,7 @@ class SessionTeardown
 
 		$this->completed = true;
 
-		header('Cleaning Up');
+		heading('Cleaning Up');
 
 		rescue(fn() => $this->unproxy($context));
 		rescue(fn() => $this->killTunnels($context));
@@ -38,7 +38,7 @@ class SessionTeardown
 		rescue(fn() => $this->handleClone($context));
 
 		if ($context->upgrade_version_available) {
-			warning("A new version of Clave is available (v{$context->upgrade_version_available}). Update with:\n\n  curl -fsSL https://clave.run | sh");
+			warning("A new version of Clave is available (v{$context->upgrade_version_available}). Update with:\n\n  clave update");
 		}
 	}
 
