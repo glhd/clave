@@ -15,15 +15,14 @@ class GetGitBranch extends Step
 	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Checking for git repo...');
-		
-		if (! $this->git->isRepo($context->project_dir)) {
-			$context->abort('This directory is not a git repository.');
-		}
-		
-		$context->base_branch = $this->git->currentBranch($context->project_dir);
-		
-		$this->hint("On branch '{$context->base_branch}'");
+		$this->checklist('Checking for git repo...')
+			->run(function() use ($context) {
+				if (! $this->git->isRepo($context->project_dir)) {
+					$context->abort('This directory is not a git repository.');
+				}
+
+				$context->base_branch = $this->git->currentBranch($context->project_dir);
+			});
 		
 		return $next($context);
 	}

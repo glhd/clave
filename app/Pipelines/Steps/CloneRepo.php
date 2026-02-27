@@ -21,8 +21,8 @@ class CloneRepo extends Step
 		$clone_branch = "clave/s-{$context->session_id}";
 		$clone_path = $this->cloneBasePath().'/s-'.$context->session_id;
 		
-		$this->hint('Cloning repo for session...');
-		$this->git->cloneLocal($context->project_dir, $clone_path, $context->base_branch, $clone_branch);
+		$this->checklist('Cloning repo for session...')
+			->run(fn() => $this->git->cloneLocal($context->project_dir, $clone_path, $context->base_branch, $clone_branch));
 		
 		$context->clone_path = $clone_path;
 		$context->clone_branch = $clone_branch;

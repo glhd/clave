@@ -16,14 +16,16 @@ class CheckClaudeAuthentication extends Step
 
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Verifying Claude authentication...');
+		$has_auth = $this->checklist('Verifying Claude authentication...')
+			->run(fn() => $this->auth->hasAuth());
 
-		if (! $this->auth->hasAuth()) {
-			$this->hint('Setting up Claude Code token...');
-
-			if (! $this->auth->setupToken()) {
-				warning('Authentication setup was not completed. Claude on the VM may prompt for login.');
-			}
+		if (! $has_auth) {
+			$this->checklist('Setting up Claude Code token...')
+				->run(function() {
+					if (! $this->auth->setupToken()) {
+						warning('Authentication setup was not completed. Claude on the VM may prompt for login.');
+					}
+				});
 		}
 
 		return $next($context);

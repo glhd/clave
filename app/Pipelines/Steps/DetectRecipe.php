@@ -16,14 +16,8 @@ class DetectRecipe extends Step
 	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Detecting project type...');
-		
-		$context->recipe = $this->detect($context->project_dir);
-		
-		$this->hint(match ($context->recipe) {
-			Recipe::Unknown => 'Unknown project type',
-			default => "Found {$context->recipe->label()} project",
-		});
+		$this->checklist('Detecting project type...')
+			->run(fn() => $context->recipe = $this->detect($context->project_dir));
 		
 		return $next($context);
 	}

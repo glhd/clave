@@ -23,21 +23,23 @@ class BootVm extends Step
 	{
 		$mount_path = $context->clone_path ?? $context->project_dir;
 		
-		$this->hint("Booting VM '{$context->vm_name}'...");
-		$this->tart->runBackground($context->vm_name, [$mount_path]);
-		
+		$this->checklist("Booting VM '{$context->vm_name}'...")
+			->run(fn() => $this->tart->runBackground($context->vm_name, [$mount_path]));
+
 		$this->ssh->usePassword(config('clave.ssh.password'));
-		
-		$this->hint('Waiting for VM IP address...');
-		$ip = $this->tart->ip($context->vm_name, $this->timeout);
-		$context->vm_ip = $ip;
-		$this->ssh->setHost($ip);
-		
-		$this->hint('Waiting for SSH...');
-		$this->waitForSsh($context);
-		
-		$this->hint('Mounting shared directories...');
-		$this->mountSharedDirectories($context);
+
+		$this->checklist('Waiting for VM IP address...')
+			->run(function() use ($context) {
+				$ip = $this->tart->ip($context->vm_name, $this->timeout);
+				$context->vm_ip = $ip;
+				$this->ssh->setHost($ip);
+			});
+
+		$this->checklist('Waiting for SSH...')
+			->run(fn() => $this->waitForSsh($context));
+
+		$this->checklist('Mounting shared directories...')
+			->run(fn() => $this->mountSharedDirectories($context));
 		
 		return $next($context);
 	}
@@ -70,8 +72,6 @@ class BootVm extends Step
 
 				return;
 			} catch (Throwable) {
-				$elapsed = time() - $start;
-				$this->hint("Waiting for VirtioFS mount ({$elapsed}s)...");
 				sleep(2);
 			}
 		}
@@ -103,22 +103,12 @@ class BootVm extends Step
 	protected function waitForSsh(SessionContext $context): void
 	{
 		$start = time();
-		$attempts = 0;
-		
+
 		while (time() - $start < $this->timeout) {
-			$attempts++;
-			
 			if ($this->ssh->test()) {
 				return;
 			}
-			
-			$elapsed = time() - $start;
-			$error = $this->ssh->lastError();
-			
-			if ($attempts > 5) {
-				$this->hint("Waiting for SSH ({$elapsed}s)...");
-			}
-			
+
 			sleep(2);
 		}
 		

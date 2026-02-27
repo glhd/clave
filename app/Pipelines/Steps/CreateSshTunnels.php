@@ -19,9 +19,8 @@ class CreateSshTunnels extends Step
 			return $next($context);
 		}
 		
-		$this->hint('Creating MCP tunnels...');
-		
-		$context->tunnel_process = $this->ssh->startTunnels($context->tunnel_ports);
+		$this->checklist('Creating MCP tunnels...')
+			->run(fn() => $context->tunnel_process = $this->ssh->startTunnels($context->tunnel_ports));
 		
 		return $next($context);
 	}

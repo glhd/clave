@@ -16,9 +16,8 @@ class LoadProjectConfig extends Step
 
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Loading project config...');
-
-		$context->project_config = ProjectConfig::fromProjectDir($context->project_dir, $this->fs);
+		$this->checklist('Loading project config...')
+			->run(fn() => $context->project_config = ProjectConfig::fromProjectDir($context->project_dir, $this->fs));
 
 		return $next($context);
 	}

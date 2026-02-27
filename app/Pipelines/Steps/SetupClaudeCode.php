@@ -22,15 +22,16 @@ class SetupClaudeCode extends Step
 	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Writing Claude Code config...');
-		
-		$config = $this->readConfig('.claude.json');
-		$settings = $this->readConfig('.claude/settings.json');
-		$md = $this->readConfig('.claude/CLAUDE.md');
-		
-		$this->writeConfigFiles($config, $settings, $md, $this->auth->resolve());
-		
-		$context->tunnel_ports = array_unique(array_merge($context->tunnel_ports, $this->extractMcpPorts($config)));
+		$this->checklist('Writing Claude Code config...')
+			->run(function() use ($context) {
+				$config = $this->readConfig('.claude.json');
+				$settings = $this->readConfig('.claude/settings.json');
+				$md = $this->readConfig('.claude/CLAUDE.md');
+
+				$this->writeConfigFiles($config, $settings, $md, $this->auth->resolve());
+
+				$context->tunnel_ports = array_unique(array_merge($context->tunnel_ports, $this->extractMcpPorts($config)));
+			});
 		
 		return $next($context);
 	}

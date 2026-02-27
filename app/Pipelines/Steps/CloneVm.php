@@ -17,9 +17,11 @@ class CloneVm extends Step
 		$vm_name = "clave-{$context->session_id}";
 		$base_vm = $context->project_config->baseVmName();
 		
-		$this->hint("Cloning VM '{$base_vm}'...");
-		$this->tart->clone($base_vm, $vm_name);
-		$this->tart->randomizeMac($vm_name);
+		$this->checklist("Cloning VM '{$base_vm}'...")
+			->run(function() use ($base_vm, $vm_name) {
+				$this->tart->clone($base_vm, $vm_name);
+				$this->tart->randomizeMac($vm_name);
+			});
 		
 		$context->vm_name = $vm_name;
 		
