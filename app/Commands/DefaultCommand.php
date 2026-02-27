@@ -48,6 +48,8 @@ class DefaultCommand extends Command
 
 			try {
 				$setup($context);
+				
+				header('Launching agent');
 				clear_screen();
 				$agent($context);
 			} finally {
