@@ -7,10 +7,8 @@ use App\Support\AuthManager;
 use Closure;
 use function Laravel\Prompts\warning;
 
-class CheckClaudeAuthentication implements Step
+class CheckClaudeAuthentication extends Step
 {
-	use ProvidesProgressHints;
-
 	public function __construct(
 		protected AuthManager $auth,
 	) {

@@ -8,10 +8,8 @@ use App\Support\TartManager;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
 
-class EnsureVmExists implements Step
+class EnsureVmExists extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(
 		protected Filesystem $fs,
 		protected TartManager $tart,

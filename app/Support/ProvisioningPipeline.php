@@ -81,6 +81,11 @@ class ProvisioningPipeline
 		];
 	}
 
+	public static function hash(array $extra_commands = []): string
+	{
+		return substr(md5(static::toScript($extra_commands)), 0, 8);
+	}
+
 	public static function toScript(array $extra_commands = []): string
 	{
 		$lines = ['#!/usr/bin/env bash', 'set -euo pipefail', ''];

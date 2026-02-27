@@ -3,6 +3,8 @@
 namespace App\Commands;
 
 use App\Agents\ClaudeCode;
+use Laravel\Prompts\Concerns\Colors;
+use function App\checklist;
 use function App\clear_screen;
 use App\Data\OnExit;
 use App\Data\SessionContext;
@@ -17,6 +19,8 @@ use LaravelZero\Framework\Commands\Command;
 
 class DefaultCommand extends Command
 {
+	use Colors;
+	
 	protected $signature = 'default
 		{--on-exit= : Action on exit: keep, merge, discard}
 		{--isolate : Fork the repo into an isolated clone for this session}';
@@ -35,19 +39,15 @@ class DefaultCommand extends Command
 
 			$this->newLine();
 
-			$this->callSilently('migrate', ['--force' => true]);
-
 			$version = config('app.version');
 			$context = $this->newContext();
-
-			header("Clave {$version}");
-			note("Session <info>{$context->session_id}</info> in project <info>{$context->project_name}</info>");
+			
+			note("Clave {$version} session {$this->cyan($context->session_id)} in project {$this->cyan($context->project_name)}");
 
 			$this->trap([SIGINT, SIGTERM], static fn() => $teardown($context));
 
 			try {
 				$setup($context);
-
 				clear_screen();
 				$agent($context);
 			} finally {
@@ -68,11 +68,10 @@ class DefaultCommand extends Command
 	protected function newContext(): SessionContext
 	{
 		$project_dir = getcwd();
-		$project_name = basename($project_dir);
-
+		
 		return new SessionContext(
 			session_id: Str::random(8),
-			project_name: $project_name,
+			project_name: basename($project_dir),
 			project_dir: $project_dir,
 			isolate: (bool) $this->option('isolate'),
 			on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),

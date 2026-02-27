@@ -7,7 +7,6 @@ use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
-use App\Pipelines\Steps\SaveSession;
 use App\Support\AuthManager;
 use App\Support\DependencyManager;
 use App\Support\GitManager;
@@ -45,7 +44,6 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(SshExecutor::class);
 		$this->app->singleton(HerdManager::class);
 		$this->app->singleton(SessionTeardown::class);
-		$this->app->singleton(SaveSession::class);
 		
 		$this->app->singleton(EnsureTartInstalled::class);
 		$this->app->singleton(DetectRecipe::class);

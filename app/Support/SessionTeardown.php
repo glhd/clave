@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Data\OnExit;
 use App\Data\SessionContext;
 use function App\header;
-use App\Models\Session;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\warning;
@@ -36,7 +35,6 @@ class SessionTeardown
 		rescue(fn() => $this->stopVm($context));
 		rescue(fn() => $this->deleteVm($context));
 		rescue(fn() => $this->handleClone($context));
-		rescue(fn() => $this->deleteSession($context));
 
 		if ($context->upgrade_version_available) {
 			warning("A new version of Clave is available (v{$context->upgrade_version_available}). Update with:\n\n  curl -fsSL https://clave.run | sh");
@@ -129,8 +127,4 @@ class SessionTeardown
 		note("{$label}: {$context->clone_branch}");
 	}
 
-	protected function deleteSession(SessionContext $context): void
-	{
-		Session::where('session_id', $context->session_id)->delete();
-	}
 }

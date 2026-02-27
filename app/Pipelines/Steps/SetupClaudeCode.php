@@ -9,10 +9,8 @@ use Closure;
 use Illuminate\Filesystem\Filesystem;
 use Throwable;
 
-class SetupClaudeCode implements Step
+class SetupClaudeCode extends Step
 {
-	use ProvidesProgressHints;
-	
 	protected string $home;
 	
 	public function __construct(

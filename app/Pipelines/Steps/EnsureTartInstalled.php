@@ -9,10 +9,8 @@ use function Laravel\Prompts\note;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\warning;
 
-class EnsureTartInstalled implements Step
+class EnsureTartInstalled extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(
 		protected DependencyManager $dependencies,
 	) {
@@ -20,9 +18,10 @@ class EnsureTartInstalled implements Step
 	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
-		$this->hint('Checking for tart...');
+		$installed = $this->checklist('Checking for tart...')
+			->run(fn() => $this->dependencies->isTartInstalled());
 		
-		if ($this->dependencies->isTartInstalled()) {
+		if ($installed) {
 			return $next($context);
 		}
 		
@@ -61,16 +60,14 @@ class EnsureTartInstalled implements Step
 	
 	protected function installViaPkgx(): bool
 	{
-		$this->hint('Installing Tart via pkgx...');
-		
-		return $this->dependencies->installTartViaPkgx();
+		return $this->checklist('Installing tart via pkgx...')
+			->run(fn() => $this->dependencies->installTartViaPkgx());
 	}
 	
 	protected function installViaHomebrew(): bool
 	{
-		$this->hint('Installing Tart via Homebrew...');
-		
-		return $this->dependencies->installTartViaHomebrew();
+		return $this->checklist('Installing Tart via Homebrew...')
+			->run(fn() => $this->dependencies->installTartViaHomebrew());
 	}
 	
 	protected function showManualInstructions(): false

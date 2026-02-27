@@ -6,10 +6,8 @@ use App\Data\SessionContext;
 use App\Support\SshExecutor;
 use Closure;
 
-class CreateSshTunnels implements Step
+class CreateSshTunnels extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(
 		protected SshExecutor $ssh,
 	) {

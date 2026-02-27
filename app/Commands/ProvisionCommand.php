@@ -91,6 +91,8 @@ class ProvisionCommand extends Command
 				$tart->delete($base_vm);
 			}
 			$tart->rename($tmp_name, $base_vm);
+
+			$this->cleanupStaleBaseVms($tart, $base_vm);
 		} catch (Throwable $e) {
 			$tart->stop($tmp_name);
 			$tart->delete($tmp_name);
@@ -103,5 +105,23 @@ class ProvisionCommand extends Command
 		}
 
 		return self::SUCCESS;
+	}
+
+	protected function cleanupStaleBaseVms(TartManager $tart, string $current_base_vm): void
+	{
+		$prefix = config('clave.base_vm');
+
+		foreach ($tart->list() as $vm) {
+			$name = $vm['Name'];
+
+			if ($name === $current_base_vm) {
+				continue;
+			}
+
+			if ($name === $prefix || str_starts_with($name, $prefix.'-')) {
+				$tart->stop($name);
+				$tart->delete($name);
+			}
+		}
 	}
 }

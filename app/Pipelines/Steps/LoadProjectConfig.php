@@ -7,10 +7,8 @@ use App\Data\SessionContext;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
 
-class LoadProjectConfig implements Step
+class LoadProjectConfig extends Step
 {
-	use ProvidesProgressHints;
-
 	public function __construct(
 		protected Filesystem $fs,
 	) {

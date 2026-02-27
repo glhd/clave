@@ -39,3 +39,21 @@ test('toScript appends extra commands after standard steps', function() {
 
 	expect($standard_pos)->toBeLessThan($custom_pos);
 });
+
+test('hash returns 8-char hex string', function() {
+	$hash = ProvisioningPipeline::hash();
+
+	expect($hash)->toMatch('/^[0-9a-f]{8}$/');
+});
+
+test('hash is deterministic for same input', function() {
+	expect(ProvisioningPipeline::hash())->toBe(ProvisioningPipeline::hash())
+		->and(ProvisioningPipeline::hash(['cmd1']))->toBe(ProvisioningPipeline::hash(['cmd1']));
+});
+
+test('hash changes when extra commands differ', function() {
+	$default = ProvisioningPipeline::hash();
+	$with_extra = ProvisioningPipeline::hash(['sudo apt-get install -y postgresql']);
+
+	expect($default)->not->toBe($with_extra);
+});

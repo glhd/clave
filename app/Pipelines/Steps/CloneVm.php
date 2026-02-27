@@ -6,10 +6,8 @@ use App\Data\SessionContext;
 use App\Support\TartManager;
 use Closure;
 
-class CloneVm implements Step
+class CloneVm extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(protected TartManager $tart)
 	{
 	}

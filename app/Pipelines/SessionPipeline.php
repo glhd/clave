@@ -3,6 +3,8 @@
 namespace App\Pipelines;
 
 use App\Data\SessionContext;
+use App\Prompts\ChecklistItem;
+use function App\checklist;
 use function App\header;
 use App\Pipelines\Steps\Step;
 use Closure;
@@ -31,6 +33,7 @@ abstract class SessionPipeline extends Pipeline
 				}
 
 				$step = $this->step($pipe);
+				$step->setPipelineName($this->label());
 
 				return $this->handleCarry($step->handle($passable, $stack));
 			};

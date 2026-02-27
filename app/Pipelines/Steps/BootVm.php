@@ -9,10 +9,8 @@ use Closure;
 use RuntimeException;
 use Throwable;
 
-class BootVm implements Step
+class BootVm extends Step
 {
-	use ProvidesProgressHints;
-	
 	protected int $timeout = 90;
 	
 	public function __construct(

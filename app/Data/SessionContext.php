@@ -3,8 +3,6 @@
 namespace App\Data;
 
 use App\Exceptions\AbortedPipelineException;
-use App\Models\Session;
-use Illuminate\Process\InvokedProcess;
 use LaravelZero\Framework\Commands\Command;
 
 class SessionContext
@@ -28,8 +26,6 @@ class SessionContext
 	public ?ServiceConfig $services = null;
 	
 	public Recipe $recipe = Recipe::Unknown;
-
-	public ?Session $session = null;
 
 	public array $tunnel_ports = [80, 8080, 3306, 6379];
 

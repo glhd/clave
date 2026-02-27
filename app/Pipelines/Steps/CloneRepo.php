@@ -6,10 +6,8 @@ use App\Data\SessionContext;
 use App\Support\GitManager;
 use Closure;
 
-class CloneRepo implements Step
+class CloneRepo extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(protected GitManager $git)
 	{
 	}

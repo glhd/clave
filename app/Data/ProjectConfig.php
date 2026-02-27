@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Support\ProvisioningPipeline;
 use Illuminate\Filesystem\Filesystem;
 
 class ProjectConfig
@@ -39,13 +40,9 @@ class ProjectConfig
 
 	public function baseVmName(): string
 	{
-		if (! $this->hasCustomizations()) {
-			return config('clave.base_vm');
-		}
-
 		$hash = substr(md5(json_encode([
+			'script' => ProvisioningPipeline::toScript($this->provision),
 			'base_image' => $this->base_image,
-			'provision' => $this->provision,
 		])), 0, 8);
 
 		return config('clave.base_vm')."-{$hash}";

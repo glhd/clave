@@ -7,10 +7,8 @@ use App\Data\SessionContext;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
 
-class DetectRecipe implements Step
+class DetectRecipe extends Step
 {
-	use ProvidesProgressHints;
-	
 	public function __construct(
 		protected Filesystem $fs,
 	) {
@@ -24,7 +22,7 @@ class DetectRecipe implements Step
 		
 		$this->hint(match ($context->recipe) {
 			Recipe::Unknown => 'Unknown project type',
-			default => "✅Found {$context->recipe->label()} project",
+			default => "Found {$context->recipe->label()} project",
 		});
 		
 		return $next($context);
