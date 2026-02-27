@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
+use function App\checklist;
 
 class TartManager
 {
@@ -114,6 +115,9 @@ class TartManager
 	public function waitForReady(string $name, SshExecutor $ssh, int $timeout = 90): void
 	{
 		$ip = $this->ip($name, $timeout);
+		
+		checklist('Provisioning new virtual machine base image', "Connecting to IP {$ip}...");
+		
 		$ssh->setHost($ip);
 
 		$start = time();
@@ -124,6 +128,6 @@ class TartManager
 			sleep(2);
 		}
 
-		throw new RuntimeException("Timed out waiting for SSH to be ready on VM '{$name}'");
+		throw new RuntimeException("Timed out waiting for SSH to be ready on VM '{$name}': {$ssh->lastError()}");
 	}
 }
