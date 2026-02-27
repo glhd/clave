@@ -54,15 +54,16 @@ class BootVm extends Step
 		$project_dir = $context->project_dir;
 
 		$this->ssh->run("sudo mkdir -p {$mount_point}");
-		$this->ssh->run("sudo chown -R admin:admin {$mount_point}");
 
 		while (time() - $start < $mount_timeout) {
 			try {
-				$result = $this->ssh->run("sudo mount -t virtiofs com.apple.virtio-fs.automount {$mount_point} 2>&1; true");
-				$output = trim($result->output());
+				if (! $this->isMounted($mount_point)) {
+					$result = $this->ssh->run("sudo mount -t virtiofs com.apple.virtio-fs.automount {$mount_point} 2>&1; true");
+					$output = trim($result->output());
 
-				if ($output && $output !== $last_error) {
-					$last_error = $output;
+					if ($output && $output !== $last_error) {
+						$last_error = $output;
+					}
 				}
 
 				$this->ssh->run("mountpoint -q {$mount_point}");
@@ -100,6 +101,16 @@ class BootVm extends Step
 		);
 	}
 	
+	protected function isMounted(string $path): bool
+	{
+		try {
+			$this->ssh->run("mountpoint -q {$path}");
+			return true;
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
 	protected function waitForSsh(SessionContext $context): void
 	{
 		$start = time();
