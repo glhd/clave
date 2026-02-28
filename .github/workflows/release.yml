@@ -63,6 +63,9 @@ jobs:
       - name: Build PHAR
         run: php clave app:build clave.phar --build-version=${{ github.ref_name }}
 
+      - name: Verify PHAR
+        run: php builds/clave.phar --version
+
       - name: Generate checksums
         run: |
           cd builds
