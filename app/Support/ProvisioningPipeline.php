@@ -53,7 +53,19 @@ class ProvisioningPipeline
 			'claudeCode' => [
 				'label' => 'Installing Claude Code',
 				'commands' => [
-					'sudo -H -u admin bash -c "curl -fsSL https://claude.ai/install.sh | bash"',
+					<<<'BASH'
+					for attempt in 1 2 3; do
+					  if sudo -H -u admin bash -c "curl -fsSL https://claude.ai/install.sh | bash"; then
+					    break
+					  elif [ "$attempt" -lt 3 ]; then
+					    echo "Install attempt $attempt failed, retrying in 30s..."
+					    sleep 30
+					  else
+					    echo "Claude Code installation failed after $attempt attempts"
+					    exit 1
+					  fi
+					done
+					BASH,
 					'echo \'export PATH="$HOME/.local/bin:$PATH"\' >> /home/admin/.bashrc',
 					'sudo -H -u admin bash -l -c "claude --version"',
 				],

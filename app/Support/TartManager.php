@@ -114,11 +114,7 @@ class TartManager
 
 	public function waitForReady(string $name, SshExecutor $ssh, int $timeout = 90): void
 	{
-		$ip = $this->ip($name, $timeout);
-		
-		checklist('Provisioning new virtual machine base image', "Connecting to IP {$ip}...");
-		
-		$ssh->setHost($ip);
+		$ssh->setHost($this->ip($name, $timeout));
 
 		$start = time();
 		while (time() - $start < $timeout) {
