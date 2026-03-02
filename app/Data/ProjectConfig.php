@@ -24,12 +24,14 @@ class ProjectConfig
 		return new static(
 			base_image: $data['base_image'] ?? null,
 			provision: $data['provision'] ?? [],
+			env: $data['env'] ?? [],
 		);
 	}
 
 	public function __construct(
 		public readonly ?string $base_image = null,
 		public readonly array $provision = [],
+		public readonly array $env = [],
 	) {
 	}
 
