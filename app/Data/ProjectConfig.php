@@ -25,6 +25,8 @@ class ProjectConfig
 			base_image: $data['base_image'] ?? null,
 			provision: $data['provision'] ?? [],
 			env: $data['env'] ?? [],
+			cpus: isset($data['cpus']) ? (int) $data['cpus'] : null,
+			memory: isset($data['memory']) ? (int) $data['memory'] : null,
 		);
 	}
 
@@ -32,6 +34,8 @@ class ProjectConfig
 		public readonly ?string $base_image = null,
 		public readonly array $provision = [],
 		public readonly array $env = [],
+		public readonly ?int $cpus = null,
+		public readonly ?int $memory = null,
 	) {
 	}
 

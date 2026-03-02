@@ -72,13 +72,31 @@ test('fromProjectDir parses full .clave.json', function() {
 	$fs->shouldReceive('get')->with('/path/to/project/.clave.json')->andReturn(json_encode([
 		'base_image' => 'ghcr.io/custom/image:latest',
 		'provision' => ['sudo apt-get install -y redis-server'],
+		'cpus' => 8,
+		'memory' => 16384,
 	]));
 
 	$config = ProjectConfig::fromProjectDir('/path/to/project', $fs);
 
 	expect($config->base_image)->toBe('ghcr.io/custom/image:latest')
 		->and($config->provision)->toBe(['sudo apt-get install -y redis-server'])
+		->and($config->cpus)->toBe(8)
+		->and($config->memory)->toBe(16384)
 		->and($config->hasCustomizations())->toBeTrue();
+});
+
+test('fromProjectDir parses cpus and memory', function() {
+	$fs = Mockery::mock(Filesystem::class);
+	$fs->shouldReceive('exists')->with('/path/to/project/.clave.json')->andReturn(true);
+	$fs->shouldReceive('get')->with('/path/to/project/.clave.json')->andReturn(json_encode([
+		'cpus' => 2,
+		'memory' => 4096,
+	]));
+
+	$config = ProjectConfig::fromProjectDir('/path/to/project', $fs);
+
+	expect($config->cpus)->toBe(2)
+		->and($config->memory)->toBe(4096);
 });
 
 test('fromProjectDir handles invalid json gracefully', function() {

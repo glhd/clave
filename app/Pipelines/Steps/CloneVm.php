@@ -25,8 +25,8 @@ class CloneVm extends Step
 		
 		$context->vm_name = $vm_name;
 		
-		$cpus = config('clave.vm.cpus');
-		$memory = config('clave.vm.memory');
+		$cpus = $context->project_config->cpus ?? config('clave.vm.cpus');
+		$memory = $context->project_config->memory ?? config('clave.vm.memory');
 		$display = config('clave.vm.display');
 		
 		if ($cpus || $memory || $display) {
