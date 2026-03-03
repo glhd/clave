@@ -32,9 +32,16 @@ class ClaudeCode
 	public function __invoke(SessionContext $context): void
 	{
 		$env = $this->env($context);
-		
-		$inner = "cd {$context->project_dir} && {$env}claude --dangerously-skip-permissions";
-		
+		$model = $context->project_config->model;
+
+		$flags = '--dangerously-skip-permissions';
+
+		if ($model) {
+			$flags .= ' --model '.escapeshellarg($model);
+		}
+
+		$inner = "cd {$context->project_dir} && {$env}claude {$flags}";
+
 		$this->ssh->interactive('bash -l -c '.escapeshellarg($inner));
 	}
 	

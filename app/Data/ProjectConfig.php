@@ -27,6 +27,7 @@ class ProjectConfig
 			env: $data['env'] ?? [],
 			cpus: isset($data['cpus']) ? (int) $data['cpus'] : null,
 			memory: isset($data['memory']) ? (int) $data['memory'] : null,
+			model: $data['model'] ?? null,
 		);
 	}
 
@@ -36,6 +37,7 @@ class ProjectConfig
 		public readonly array $env = [],
 		public readonly ?int $cpus = null,
 		public readonly ?int $memory = null,
+		public readonly ?string $model = null,
 	) {
 	}
 

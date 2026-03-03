@@ -22,7 +22,7 @@ beforeEach(function() {
 	$this->app->instance(SshExecutor::class, $mock_ssh);
 });
 
-test('cleanup deletes stale base VMs after provisioning', function() {
+test('provisioning does not delete other base VMs', function() {
 	fakeProvisionProcesses([
 		['Name' => 'clave-base-abc12345'],
 		['Name' => 'clave-base'],
@@ -35,41 +35,23 @@ test('cleanup deletes stale base VMs after provisioning', function() {
 		'--force' => true,
 	]);
 
-	Process::assertRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-base']);
-	Process::assertRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-base']);
-	Process::assertRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-base-old11111']);
-	Process::assertRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-base-old11111']);
-});
-
-test('cleanup does not delete current base VM', function() {
-	fakeProvisionProcesses([
-		['Name' => 'clave-base-abc12345'],
-	]);
-
-	$this->artisan('provision', [
-		'--base-vm' => 'clave-base-abc12345',
-		'--force' => true,
-	]);
-
-	// Cleanup calls stop then delete; the pre-rename flow only calls delete.
-	// If stop was never called on the current VM, cleanup correctly skipped it.
-	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-base-abc12345']);
-});
-
-test('cleanup does not delete non-base VMs', function() {
-	fakeProvisionProcesses([
-		['Name' => 'clave-base-abc12345'],
-		['Name' => 'clave-session-xyz'],
-		['Name' => 'my-other-vm'],
-	]);
-
-	$this->artisan('provision', [
-		'--base-vm' => 'clave-base-abc12345',
-		'--force' => true,
-	]);
-
+	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-base']);
+	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-base']);
+	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-base-old11111']);
+	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-base-old11111']);
 	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'clave-session-xyz']);
 	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-session-xyz']);
-	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'stop', 'my-other-vm']);
-	Process::assertNotRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'my-other-vm']);
+});
+
+test('provisioning replaces existing base VM with same name', function() {
+	fakeProvisionProcesses([
+		['Name' => 'clave-base-abc12345'],
+	]);
+
+	$this->artisan('provision', [
+		'--base-vm' => 'clave-base-abc12345',
+		'--force' => true,
+	]);
+
+	Process::assertRan(fn(PendingProcess $p) => $p->command === ['tart', 'delete', 'clave-base-abc12345']);
 });
