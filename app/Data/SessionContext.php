@@ -21,8 +21,6 @@ class SessionContext
 	
 	public ?string $clone_branch = null;
 	
-	public ?string $proxy_name = null;
-	
 	public ?ServiceConfig $services = null;
 	
 	public Recipe $recipe = Recipe::Unknown;

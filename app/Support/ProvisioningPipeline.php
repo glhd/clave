@@ -77,8 +77,8 @@ class ProvisioningPipeline
 					'git config --global user.email "noreply@clave.run"',
 				],
 			],
-			'laravelDirectories' => [
-				'label' => 'Creating Laravel directories',
+			'projectDirectories' => [
+				'label' => 'Creating project directories',
 				'commands' => [
 					'sudo mkdir -p /srv/project',
 					'sudo chown -R admin:admin /srv/project',

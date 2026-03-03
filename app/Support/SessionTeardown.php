@@ -2,11 +2,11 @@
 
 namespace App\Support;
 
-use App\Prompts\ChecklistItem;
 use function App\checklist;
-use function App\heading;
 use App\Data\OnExit;
 use App\Data\SessionContext;
+use function App\heading;
+use App\Prompts\ChecklistItem;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\warning;
 
@@ -17,7 +17,6 @@ class SessionTeardown
 	public function __construct(
 		protected TartManager $tart,
 		protected GitManager $git,
-		protected HerdManager $herd,
 	) {
 	}
 
@@ -31,7 +30,6 @@ class SessionTeardown
 
 		heading('Cleaning Up');
 
-		rescue(fn() => $this->unproxy($context));
 		rescue(fn() => $this->killTunnels($context));
 		rescue(fn() => $this->stopVm($context));
 		rescue(fn() => $this->deleteVm($context));
@@ -45,16 +43,6 @@ class SessionTeardown
 	protected function checklist(string $item): ChecklistItem
 	{
 		return checklist('Cleaning up virtual machine', $item);
-	}
-
-	protected function unproxy(SessionContext $context): void
-	{
-		if (! $context->proxy_name) {
-			return;
-		}
-
-		$this->checklist('Removing Herd proxy...')
-			->run(fn() => $this->herd->unproxy($context->proxy_name));
 	}
 
 	protected function killTunnels(SessionContext $context): void

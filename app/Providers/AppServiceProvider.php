@@ -10,7 +10,6 @@ use App\Pipelines\Steps\EnsureVmExists;
 use App\Support\AuthManager;
 use App\Support\DependencyManager;
 use App\Support\GitManager;
-use App\Support\HerdManager;
 use App\Support\SessionTeardown;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
@@ -42,7 +41,6 @@ class AppServiceProvider extends ServiceProvider
 		$this->app->singleton(TartManager::class);
 		$this->app->singleton(GitManager::class);
 		$this->app->singleton(SshExecutor::class);
-		$this->app->singleton(HerdManager::class);
 		$this->app->singleton(SessionTeardown::class);
 		
 		$this->app->singleton(EnsureTartInstalled::class);
