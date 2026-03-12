@@ -23,25 +23,40 @@ class BootVm extends Step
 	{
 		$mount_path = $context->clone_path ?? $context->project_dir;
 		
-		$this->checklist("Booting VM '{$context->vm_name}'...")
+		$boot_label = $context->resumed ? 'Resuming' : 'Booting';
+		$this->checklist("{$boot_label} VM '{$context->vm_name}'...")
 			->run(fn() => $this->tart->runBackground($context->vm_name, [$mount_path]));
-
+		
 		$this->ssh->usePassword(config('clave.ssh.password'));
-
+		
 		$this->checklist('Waiting for VM IP address...')
 			->run(function() use ($context) {
 				$ip = $this->tart->ip($context->vm_name, $this->timeout);
 				$context->vm_ip = $ip;
 				$this->ssh->setHost($ip);
 			});
-
+		
 		$this->checklist('Waiting for SSH...')
 			->run(fn() => $this->waitForSsh($context));
-
+		
+		if ($context->resumed) {
+			$this->checklist('Cleaning up stale processes...')
+				->run(fn() => $this->cleanupResumedVm($context));
+		}
+		
 		$this->checklist('Mounting shared directories...')
 			->run(fn() => $this->mountSharedDirectories($context));
 		
 		return $next($context);
+	}
+	
+	protected function cleanupResumedVm(SessionContext $context): void
+	{
+		$this->ssh->run('pkill -u admin -x node 2>/dev/null; true');
+		
+		$project_dir = $context->project_dir;
+		$this->ssh->run("sudo umount {$project_dir} 2>/dev/null; true");
+		$this->ssh->run('sudo umount /srv/project 2>/dev/null; true');
 	}
 	
 	protected function mountSharedDirectories(SessionContext $context): void
@@ -49,36 +64,36 @@ class BootVm extends Step
 		$mount_timeout = 30;
 		$start = time();
 		$last_error = '';
-
+		
 		$mount_point = '/srv/project';
 		$project_dir = $context->project_dir;
-
+		
 		$this->ssh->run("sudo mkdir -p {$mount_point}");
-
+		
 		while (time() - $start < $mount_timeout) {
 			try {
 				if (! $this->isMounted($mount_point)) {
 					$result = $this->ssh->run("sudo mount -t virtiofs com.apple.virtio-fs.automount {$mount_point} 2>&1; true");
 					$output = trim($result->output());
-
+					
 					if ($output && $output !== $last_error) {
 						$last_error = $output;
 					}
 				}
-
+				
 				$this->ssh->run("mountpoint -q {$mount_point}");
-
+				
 				$this->ssh->run("sudo mkdir -p {$project_dir}");
 				$this->ssh->run("sudo mount --bind {$mount_point} {$project_dir}");
-
+				
 				return;
 			} catch (Throwable) {
 				sleep(2);
 			}
 		}
-
+		
 		$diag = $last_error;
-
+		
 		try {
 			$result = $this->ssh->run(implode("\n", [
 				"echo '=== {$mount_point} ==='",
@@ -94,7 +109,7 @@ class BootVm extends Step
 			$diag .= "\n".$result->output();
 		} catch (Throwable) {
 		}
-
+		
 		throw new RuntimeException(
 			"Timed out after {$mount_timeout}s waiting for VirtioFS mount on VM '{$context->vm_name}'"
 			.($diag ? "\nDiagnostics:\n{$diag}" : '')
@@ -110,16 +125,16 @@ class BootVm extends Step
 			return false;
 		}
 	}
-
+	
 	protected function waitForSsh(SessionContext $context): void
 	{
 		$start = time();
-
+		
 		while (time() - $start < $this->timeout) {
 			if ($this->ssh->test()) {
 				return;
 			}
-
+			
 			sleep(2);
 		}
 		

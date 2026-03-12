@@ -12,7 +12,7 @@ class ProvisioningPipeline
 				'commands' => [
 					'sudo apt-get update -y',
 					'sudo apt-get upgrade -y',
-					'sudo apt-get install -y curl git unzip software-properties-common',
+					'sudo apt-get install -y curl git unzip software-properties-common jq',
 				],
 			],
 			'php' => [
@@ -50,6 +50,18 @@ class ProvisioningPipeline
 					'sudo apt-get install -y nodejs',
 				],
 			],
+			// 'phpstorm' => [
+			// 	'label' => 'Installing PhpStorm remote dev backend',
+			// 	'commands' => [
+			// 		<<<'BASH'
+			// 		PHPSTORM_URL=$(curl -fsSL 'https://data.services.jetbrains.com/products?code=PS&release.type=release&_p=1&_n=1' \
+			// 		  | jq -r '.[0].releases[0].downloads.linuxARM64.link')
+			// 		curl -fsSL "$PHPSTORM_URL" | sudo tar xz -C /opt
+			// 		sudo mv /opt/PhpStorm-* /opt/phpstorm
+			// 		sudo -H -u admin /opt/phpstorm/bin/remote-dev-server.sh registerBackendLocationForGateway
+			// 		BASH,
+			// 	],
+			// ],
 			'claudeCode' => [
 				'label' => 'Installing Claude Code',
 				'commands' => [
@@ -92,16 +104,16 @@ class ProvisioningPipeline
 			],
 		];
 	}
-
+	
 	public static function hash(array $extra_commands = []): string
 	{
 		return substr(md5(static::toScript($extra_commands)), 0, 8);
 	}
-
+	
 	public static function toScript(array $extra_commands = []): string
 	{
 		$lines = ['#!/usr/bin/env bash', 'set -euo pipefail', ''];
-
+		
 		foreach (static::steps() as $step) {
 			$lines[] = "echo '==> {$step['label']}...'";
 			foreach ($step['commands'] as $command) {
@@ -109,7 +121,7 @@ class ProvisioningPipeline
 			}
 			$lines[] = '';
 		}
-
+		
 		if ($extra_commands) {
 			$lines[] = "echo '==> Running project provisioning...'";
 			foreach ($extra_commands as $command) {
@@ -117,7 +129,7 @@ class ProvisioningPipeline
 			}
 			$lines[] = '';
 		}
-
+		
 		return implode("\n", $lines)."\n";
 	}
 }

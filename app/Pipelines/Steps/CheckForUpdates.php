@@ -5,6 +5,7 @@ namespace App\Pipelines\Steps;
 use App\Data\SessionContext;
 use Closure;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class CheckForUpdates extends Step
 {
@@ -21,7 +22,7 @@ class CheckForUpdates extends Step
 					if ($latest_version && version_compare($current_version, $latest_version, '<')) {
 						$context->upgrade_version_available = $latest_version;
 					}
-				} catch (\Throwable) {
+				} catch (Throwable) {
 					// Silently ignore network failures
 				}
 			});

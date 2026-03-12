@@ -104,3 +104,36 @@ test('list returns parsed json', function() {
 
 	expect($this->tart->list())->toBe([['name' => 'clave-base']]);
 });
+
+test('suspend runs correct command', function() {
+	Process::fake();
+
+	$this->tart->suspend('clave-abc123');
+
+	Process::assertRan(fn(PendingProcess $process) => $process->command === ['tart', 'suspend', 'clave-abc123']);
+});
+
+test('state returns vm state when found', function() {
+	Process::fake(fn(PendingProcess $process) => match (true) {
+		$process->command === ['tart', 'list', '--format', 'json'] => Process::result(
+			output: json_encode([
+				['name' => 'clave-abc', 'state' => 'suspended'],
+				['name' => 'other-vm', 'state' => 'running'],
+			])
+		),
+		default => Process::result(),
+	});
+
+	expect($this->tart->state('clave-abc'))->toBe('suspended');
+});
+
+test('state returns null when vm not found', function() {
+	Process::fake(fn(PendingProcess $process) => match (true) {
+		$process->command === ['tart', 'list', '--format', 'json'] => Process::result(
+			output: json_encode([['name' => 'other-vm', 'state' => 'running']])
+		),
+		default => Process::result(),
+	});
+
+	expect($this->tart->state('clave-missing'))->toBeNull();
+});

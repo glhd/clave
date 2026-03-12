@@ -20,7 +20,7 @@ class GetGitBranch extends Step
 				if (! $this->git->isRepo($context->project_dir)) {
 					$context->abort('This directory is not a git repository.');
 				}
-
+				
 				$context->base_branch = $this->git->currentBranch($context->project_dir);
 			});
 		

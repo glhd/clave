@@ -34,7 +34,21 @@ test('mutable properties default to null', function() {
 		->and($context->services)->toBeNull()
 		->and($context->on_exit)->toBeNull()
 		->and($context->tunnel_ports)->toBe([80, 8080, 3306, 6379])
-		->and($context->tunnel_process)->toBeNull();
+		->and($context->tunnel_process)->toBeNull()
+		->and($context->resumed)->toBeFalse()
+		->and($context->ephemeral)->toBeFalse()
+		->and($context->fresh)->toBeFalse();
+});
+
+test('vmNameForProject returns deterministic name', function() {
+	$name1 = SessionContext::vmNameForProject('/path/to/project');
+	$name2 = SessionContext::vmNameForProject('/path/to/project');
+	$name3 = SessionContext::vmNameForProject('/path/to/other');
+
+	expect($name1)->toBe($name2)
+		->and($name1)->not->toBe($name3)
+		->and($name1)->toStartWith('clave-')
+		->and(strlen($name1))->toBe(18);
 });
 
 test('mutable properties can be set', function() {

@@ -17,7 +17,7 @@ class CloneRepo extends Step
 		if (! $context->isolate) {
 			return $next($context);
 		}
-
+		
 		$clone_branch = "clave/s-{$context->session_id}";
 		$clone_path = $this->cloneBasePath().'/s-'.$context->session_id;
 		

@@ -13,12 +13,12 @@ class CheckClaudeAuthentication extends Step
 		protected AuthManager $auth,
 	) {
 	}
-
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$has_auth = $this->checklist('Verifying Claude authentication...')
 			->run(fn() => $this->auth->hasAuth());
-
+		
 		if (! $has_auth) {
 			$this->checklist('Setting up Claude Code token...')
 				->run(function() {
@@ -27,7 +27,7 @@ class CheckClaudeAuthentication extends Step
 					}
 				});
 		}
-
+		
 		return $next($context);
 	}
 }

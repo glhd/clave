@@ -33,15 +33,15 @@ class ClaudeCode
 	{
 		$env = $this->env($context);
 		$model = $context->project_config->model;
-
+		
 		$flags = '--dangerously-skip-permissions';
-
+		
 		if ($model) {
 			$flags .= ' --model '.escapeshellarg($model);
 		}
-
+		
 		$inner = "cd {$context->project_dir} && {$env}claude {$flags}";
-
+		
 		$this->ssh->interactive('bash -l -c '.escapeshellarg($inner));
 	}
 	
@@ -67,6 +67,12 @@ class ClaudeCode
 				'oauth' => 'CLAUDE_CODE_OAUTH_TOKEN',
 			};
 			$env[] = $env_var.'='.escapeshellarg($resolved['value']);
+		}
+		
+		if ($context->ide) {
+			$env[] = 'CLAUDE_CODE_SSE_PORT='.escapeshellarg((string) $context->ide->port);
+			$env[] = 'ENABLE_IDE_INTEGRATION=true';
+			$env[] = 'TERMINAL_EMULATOR=JetBrains-JediTerm';
 		}
 		
 		return $env ? implode(' ', $env).' ' : '';

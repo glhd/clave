@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Process;
+use Throwable;
 
 class SshExecutor
 {
@@ -63,14 +64,14 @@ class SshExecutor
 	{
 		$args = $this->buildCommandArgs($command, tty: true);
 		$cmd = implode(' ', array_map('escapeshellarg', $args));
-
+		
 		$env_prefix = '';
 		foreach ($this->sshEnv() as $key => $value) {
 			$env_prefix .= "{$key}=".escapeshellarg($value).' ';
 		}
-
+		
 		passthru($env_prefix.$cmd, $exit_code);
-
+		
 		return $exit_code;
 	}
 	
@@ -105,7 +106,7 @@ class SshExecutor
 			$this->last_error = trim($result->errorOutput()) ?: trim($result->output());
 			
 			return false;
-		} catch (\Throwable $e) {
+		} catch (Throwable $e) {
 			$this->last_error = $e->getMessage();
 			
 			return false;

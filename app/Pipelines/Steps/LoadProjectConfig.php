@@ -13,12 +13,12 @@ class LoadProjectConfig extends Step
 		protected Filesystem $fs,
 	) {
 	}
-
+	
 	public function handle(SessionContext $context, Closure $next): mixed
 	{
 		$this->checklist('Loading project config...')
 			->run(fn() => $context->project_config = ProjectConfig::fromProjectDir($context->project_dir, $this->fs));
-
+		
 		return $next($context);
 	}
 }

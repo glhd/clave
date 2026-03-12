@@ -2,10 +2,10 @@
 
 namespace App\Pipelines\Steps;
 
-use function App\checklist;
 use App\Data\SessionContext;
 use App\Prompts\ChecklistItem;
 use Closure;
+use function App\checklist;
 
 abstract class Step
 {

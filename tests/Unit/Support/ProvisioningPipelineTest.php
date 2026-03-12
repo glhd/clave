@@ -51,6 +51,13 @@ test('hash is deterministic for same input', function() {
 		->and(ProvisioningPipeline::hash(['cmd1']))->toBe(ProvisioningPipeline::hash(['cmd1']));
 });
 
+test('toScript includes PhpStorm installation step', function() {
+	$script = ProvisioningPipeline::toScript();
+
+	expect($script)->toContain("echo '==> Installing PhpStorm remote dev backend...'")
+		->and($script)->toContain('registerBackendLocationForGateway');
+});
+
 test('hash changes when extra commands differ', function() {
 	$default = ProvisioningPipeline::hash();
 	$with_extra = ProvisioningPipeline::hash(['sudo apt-get install -y postgresql']);

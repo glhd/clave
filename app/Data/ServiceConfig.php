@@ -13,7 +13,7 @@ class ServiceConfig
 			redis_port: 6379,
 		);
 	}
-
+	
 	public static function localServices(): self
 	{
 		return new self(
@@ -23,7 +23,7 @@ class ServiceConfig
 			redis_port: 6379,
 		);
 	}
-
+	
 	public function __construct(
 		public readonly string $mysql_host,
 		public readonly int $mysql_port,

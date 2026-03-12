@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Laravel\Prompts\Concerns\Colors;
 use LaravelZero\Framework\Commands\Command;
 use Phar;
+use Throwable;
 use function App\heading;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
@@ -97,7 +98,7 @@ class UpdateCommand extends Command
 					return self::FAILURE;
 				}
 			}
-		} catch (\Throwable $e) {
+		} catch (Throwable $e) {
 			error("Update failed: {$e->getMessage()}");
 			@unlink($temp_path);
 			

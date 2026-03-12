@@ -2,15 +2,15 @@
 
 namespace App\Commands;
 
-use function App\checklist;
 use App\Support\ProvisioningPipeline;
 use App\Support\SshExecutor;
 use App\Support\TartManager;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
-use function Laravel\Prompts\note;
 use LaravelZero\Framework\Commands\Command;
 use Throwable;
+use function App\checklist;
+use function Laravel\Prompts\note;
 
 class ProvisionCommand extends Command
 {
@@ -19,28 +19,28 @@ class ProvisionCommand extends Command
 		{--image= : OCI image to pull}
 		{--base-vm= : Name for the provisioned base VM}
 		{--provision= : JSON array of extra provisioning commands}';
-
+	
 	protected $description = 'Provision the base VM image for Clave sessions';
-
+	
 	public function handle(
 		TartManager $tart,
 		SshExecutor $ssh,
 		Filesystem $fs,
 	): int {
 		$base_vm = $this->option('base-vm') ?? config('clave.base_vm');
-
+		
 		if (! $this->option('force') && $tart->exists($base_vm)) {
 			note("Base image '{$base_vm}' already exists. Use --force to re-provision.");
-
+			
 			return self::SUCCESS;
 		}
 		
 		$checklist = checklist('Provisioning new virtual machine base image');
-
+		
 		$tmp_id = Str::random(12);
 		$tmp_name = "clave-tmp-{$tmp_id}";
 		$script_dir = null;
-
+		
 		$this->trap([SIGINT, SIGTERM], function() use ($checklist, $tart, $tmp_name) {
 			$checklist->item('Cleaning up...')
 				->run(function() use ($tart, $tmp_name) {
@@ -50,13 +50,13 @@ class ProvisionCommand extends Command
 			
 			exit(1);
 		});
-
+		
 		try {
 			$image = $this->option('image') ?? config('clave.base_image');
-
+			
 			$checklist->item("Cloning '{$image}'...")
 				->run(fn() => $tart->clone($image, $tmp_name));
-
+			
 			$checklist->item('Configuring VM...')
 				->run(function() use ($tart, $ssh, $fs, $tmp_name, $tmp_id, &$script_dir) {
 					$tart->set(
@@ -65,33 +65,33 @@ class ProvisionCommand extends Command
 						memory: config('clave.vm.memory'),
 						display: config('clave.vm.display')
 					);
-
+					
 					$ssh->usePassword(config('clave.ssh.password'));
-
+					
 					$extra_provision = $this->option('provision')
 						? json_decode($this->option('provision'), true) ?? []
 						: [];
-
+					
 					$script_dir = sys_get_temp_dir().'/clave-provision-'.$tmp_id;
 					$fs->ensureDirectoryExists($script_dir, 0700);
 					$fs->put("{$script_dir}/provision.sh", ProvisioningPipeline::toScript($extra_provision));
 				});
-
+			
 			$checklist->item('Booting VM...')
 				->run(fn() => $tart->runBackground($tmp_name, [$script_dir]));
-
+			
 			$checklist->item('Waiting for VM to be ready...')
 				->run(fn() => $tart->waitForReady($tmp_name, $ssh, 120));
-
+			
 			$checklist->item('Provisioning (may take a while)...')
 				->run(function() use ($ssh) {
 					$ssh->run('sudo mkdir -p /mnt/provision && sudo mount -t virtiofs com.apple.virtio-fs.automount /mnt/provision');
 					$ssh->run('sudo bash /mnt/provision/provision.sh', 600);
 				});
-
+			
 			$checklist->item('Stopping VM...')
 				->run(fn() => $tart->stop($tmp_name));
-
+			
 			$checklist->item('Finalizing base image...')
 				->run(function() use ($tart, $base_vm, $tmp_name) {
 					if ($tart->exists($base_vm)) {
@@ -102,14 +102,14 @@ class ProvisionCommand extends Command
 		} catch (Throwable $e) {
 			$tart->stop($tmp_name);
 			$tart->delete($tmp_name);
-
+			
 			throw $e;
 		} finally {
 			if ($script_dir) {
 				$fs->deleteDirectory($script_dir);
 			}
 		}
-
+		
 		return self::SUCCESS;
 	}
 }

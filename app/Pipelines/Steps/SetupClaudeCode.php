@@ -28,9 +28,9 @@ class SetupClaudeCode extends Step
 				$config = $this->readConfig('.claude.json');
 				$settings = $this->readConfig('.claude/settings.json');
 				$md = $this->readConfig('.claude/CLAUDE.md');
-
+				
 				$this->writeConfigFiles($context, $config, $settings, $md, $this->auth->resolve());
-
+				
 				$context->tunnel_ports = array_unique(array_merge($context->tunnel_ports, $this->extractMcpPorts($config)));
 			});
 		
