@@ -97,6 +97,8 @@ class DetectIdeIntegration extends Step
 			return new IdeContext(
 				port: (int) $filename,
 				ide_name: $data['ideName'] ?? 'JetBrains',
+				transport: $data['transport'] ?? 'ws',
+				auth_token: $data['authToken'] ?? null,
 			);
 		} catch (Throwable) {
 			return null;

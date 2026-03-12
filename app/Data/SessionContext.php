@@ -48,6 +48,7 @@ class SessionContext
 		public bool $fresh = false,
 		public ?OnExit $on_exit = null,
 		public ?Command $command = null,
+		public array $claude_flags = [],
 	) {
 		$this->project_config = new ProjectConfig();
 	}

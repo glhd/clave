@@ -61,6 +61,8 @@ class SetupClaudeCode extends Step
 			'mcpServers' => $config['mcpServers'] ?? null,
 			'showSpinnerTree' => $config['showSpinnerTree'] ?? null,
 			'theme' => $config['theme'] ?? 'light',
+			'autoConnectIde' => $config['autoConnectIde'] ?? null,
+			'hasIdeOnboardingBeenShown' => $config['hasIdeOnboardingBeenShown'] ?? null,
 			'hasCompletedOnboarding' => true,
 			'shiftEnterKeyBindingInstalled' => true,
 			'projects' => [
@@ -101,7 +103,19 @@ class SetupClaudeCode extends Step
 			$md_encoded = base64_encode($md);
 			$command .= " && echo {$md_encoded} | base64 -d > ~/.claude/CLAUDE.md";
 		}
-		
+
+		if ($context->ide) {
+			$lock = json_encode(array_filter([
+				'ideName' => $context->ide->ide_name,
+				'transport' => $context->ide->transport,
+				'authToken' => $context->ide->auth_token,
+				'workspaceFolders' => [$context->project_dir],
+			], fn($v) => $v !== null), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+			$lock_encoded = base64_encode($lock);
+			$port = $context->ide->port;
+			$command .= " && mkdir -p ~/.claude/ide && echo {$lock_encoded} | base64 -d > ~/.claude/ide/{$port}.lock";
+		}
+
 		$this->ssh->run($command);
 	}
 	

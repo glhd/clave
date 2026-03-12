@@ -8,12 +8,6 @@ use App\Support\SshExecutor;
 
 class ClaudeCode
 {
-	public function __construct(
-		protected SshExecutor $ssh,
-		protected AuthManager $auth,
-	) {
-	}
-	
 	protected const array ALLOWED_ENV_VARS = [
 		'COLORTERM',
 		'FORCE_COLOR',
@@ -28,16 +22,26 @@ class ClaudeCode
 		'TZ',
 		'VISUAL',
 	];
-	
+
+	public function __construct(
+		protected SshExecutor $ssh,
+		protected AuthManager $auth,
+	) {
+	}
+
 	public function __invoke(SessionContext $context): void
 	{
 		$env = $this->env($context);
 		$model = $context->project_config->model;
 		
 		$flags = '--dangerously-skip-permissions';
-		
+
 		if ($model) {
 			$flags .= ' --model '.escapeshellarg($model);
+		}
+
+		foreach ($context->claude_flags as $flag) {
+			$flags .= ' '.escapeshellarg($flag);
 		}
 		
 		$inner = "cd {$context->project_dir} && {$env}claude {$flags}";

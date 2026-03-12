@@ -13,7 +13,6 @@ use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
 use App\Pipelines\Steps\LoadProjectConfig;
-use App\Pipelines\Steps\PrintGatewayLink;
 use App\Pipelines\Steps\ResolveVm;
 use App\Pipelines\Steps\SetupClaudeCode;
 
@@ -40,7 +39,7 @@ class SessionSetup extends SessionPipeline
 			BootVm::class,
 			SetupClaudeCode::class,
 			CreateSshTunnels::class,
-			PrintGatewayLink::class,
+			// PrintGatewayLink::class,
 		];
 	}
 }

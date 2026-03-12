@@ -3,17 +3,17 @@
 namespace App\Commands;
 
 use App\Agents\ClaudeCode;
+use function App\clear_screen;
 use App\Data\OnExit;
 use App\Data\SessionContext;
 use App\Exceptions\AbortedPipelineException;
+use function App\heading;
 use App\Pipelines\SessionSetup;
 use App\Support\SessionTeardown;
 use Illuminate\Support\Str;
 use Laravel\Prompts\Concerns\Colors;
-use LaravelZero\Framework\Commands\Command;
-use function App\clear_screen;
-use function App\heading;
 use function Laravel\Prompts\error;
+use LaravelZero\Framework\Commands\Command;
 
 class DefaultCommand extends Command
 {
@@ -69,7 +69,7 @@ class DefaultCommand extends Command
 	protected function newContext(): SessionContext
 	{
 		$project_dir = getcwd();
-		
+
 		return new SessionContext(
 			session_id: Str::random(8),
 			project_name: basename($project_dir),
@@ -78,6 +78,13 @@ class DefaultCommand extends Command
 			fresh: (bool) $this->option('fresh'),
 			on_exit: OnExit::tryFrom($this->option('on-exit') ?? ''),
 			command: $this,
+			claude_flags: $this->parsePassthroughFlags(),
 		);
+	}
+
+	protected function parsePassthroughFlags(): array
+	{
+		// TODO: our initial implementation of this doesn't work
+		return [];
 	}
 }
