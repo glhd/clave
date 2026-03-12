@@ -72,7 +72,6 @@ class ClaudeCode
 		if ($context->ide) {
 			$env[] = 'CLAUDE_CODE_SSE_PORT='.escapeshellarg((string) $context->ide->port);
 			$env[] = 'ENABLE_IDE_INTEGRATION=true';
-			$env[] = 'TERMINAL_EMULATOR=JetBrains-JediTerm';
 		}
 		
 		return $env ? implode(' ', $env).' ' : '';
