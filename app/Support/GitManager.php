@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Process;
+use function App\home_path;
 use InvalidArgumentException;
 
 class GitManager
@@ -38,7 +39,7 @@ class GitManager
 	public function removeClone(string $clone_path): true
 	{
 		$real_path = realpath($clone_path);
-		$repos_dir = rtrim($_SERVER['HOME'], '/').'/.clave/repos';
+		$repos_dir = home_path('.clave/repos');
 		
 		if ($real_path === false || ! str_starts_with($real_path, $repos_dir.'/')) {
 			throw new InvalidArgumentException("The path '{$clone_path}' is outside of '{$repos_dir}'");

@@ -5,6 +5,7 @@ namespace App\Commands;
 use App\Support\TartManager;
 use Illuminate\Filesystem\Filesystem;
 use LaravelZero\Framework\Commands\Command;
+use function App\home_path;
 use function Laravel\Prompts\confirm;
 
 class CleanCommand extends Command
@@ -54,14 +55,12 @@ class CleanCommand extends Command
 			return self::SUCCESS;
 		}
 		
-		$home = $_SERVER['HOME'] ?? getenv('HOME');
-		
 		foreach ($vms as $vm) {
 			$name = $vm['name'];
 			$this->info("Deleting {$name}...");
 			$tart->delete($name);
-			
-			$metadata_path = "{$home}/.config/clave/vms/{$name}.json";
+
+			$metadata_path = home_path(".config/clave/vms/{$name}.json");
 			if ($fs->exists($metadata_path)) {
 				$fs->delete($metadata_path);
 			}

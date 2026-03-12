@@ -3,6 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Data\SessionContext;
+use function App\home_path;
 use App\Support\GitManager;
 use Closure;
 
@@ -32,6 +33,6 @@ class CloneRepo extends Step
 	
 	protected function cloneBasePath(): string
 	{
-		return ($_SERVER['HOME'] ?? getenv('HOME')).'/.clave/repos';
+		return home_path('.clave/repos');
 	}
 }

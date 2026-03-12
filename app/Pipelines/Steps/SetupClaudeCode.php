@@ -3,6 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Data\SessionContext;
+use function App\home_path;
 use App\Support\AuthManager;
 use App\Support\SshExecutor;
 use Closure;
@@ -12,7 +13,6 @@ use Throwable;
 
 class SetupClaudeCode extends Step
 {
-	protected string $home;
 	
 	public function __construct(
 		protected SshExecutor $ssh,
@@ -42,7 +42,7 @@ class SetupClaudeCode extends Step
 		$json ??= str_ends_with($relative_path, '.json');
 		
 		try {
-			$path = $this->homePath($relative_path);
+			$path = home_path($relative_path);
 			
 			if (! file_exists($path)) {
 				return $json ? [] : '';
@@ -143,10 +143,4 @@ class SetupClaudeCode extends Step
 		return array_unique($ports);
 	}
 	
-	protected function homePath(string $path): string
-	{
-		$this->home ??= ($_SERVER['HOME'] ?? getenv('HOME'));
-		
-		return $this->home.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
-	}
 }

@@ -54,7 +54,7 @@ class BootVm extends Step
 	{
 		$this->ssh->run('pkill -u admin -x node 2>/dev/null; true');
 		
-		$project_dir = $context->project_dir;
+		$project_dir = escapeshellarg($context->project_dir);
 		$this->ssh->run("sudo umount {$project_dir} 2>/dev/null; true");
 		$this->ssh->run('sudo umount /srv/project 2>/dev/null; true');
 	}

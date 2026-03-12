@@ -137,6 +137,7 @@ class AuthManager
 		];
 		
 		file_put_contents($auth_file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+		chmod($auth_file, 0600);
 		
 		return true;
 	}

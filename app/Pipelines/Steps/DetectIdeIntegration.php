@@ -3,6 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Data\IdeContext;
+use function App\home_path;
 use App\Data\SessionContext;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
@@ -10,7 +11,6 @@ use Throwable;
 
 class DetectIdeIntegration extends Step
 {
-	protected string $home;
 	
 	public function __construct(
 		protected Filesystem $fs,
@@ -54,7 +54,7 @@ class DetectIdeIntegration extends Step
 	
 	protected function detectFromLockFiles(string $project_dir): ?IdeContext
 	{
-		$ide_dir = $this->homePath('.claude/ide');
+		$ide_dir = home_path('.claude/ide');
 		
 		if (! $this->fs->isDirectory($ide_dir)) {
 			return null;
@@ -105,10 +105,4 @@ class DetectIdeIntegration extends Step
 		}
 	}
 	
-	protected function homePath(string $path): string
-	{
-		$this->home ??= ($_SERVER['HOME'] ?? getenv('HOME'));
-		
-		return $this->home.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
-	}
 }
