@@ -31,7 +31,6 @@ test('mutable properties default to null', function() {
 		->and($context->vm_ip)->toBeNull()
 		->and($context->clone_path)->toBeNull()
 		->and($context->clone_branch)->toBeNull()
-		->and($context->services)->toBeNull()
 		->and($context->on_exit)->toBeNull()
 		->and($context->tunnel_ports)->toBe([80, 8080, 3306, 6379])
 		->and($context->tunnel_process)->toBeNull()

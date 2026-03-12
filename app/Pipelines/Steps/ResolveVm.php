@@ -3,7 +3,7 @@
 namespace App\Pipelines\Steps;
 
 use App\Data\SessionContext;
-use function App\home_path;
+use function App\user_config_path;
 use App\Support\TartManager;
 use Closure;
 use Illuminate\Filesystem\Filesystem;
@@ -122,7 +122,7 @@ class ResolveVm extends Step
 	
 	protected function metadataPath(string $vm_name): string
 	{
-		return home_path(".config/clave/vms/{$vm_name}.json");
+		return user_config_path("vms/{$vm_name}.json");
 	}
 	
 	protected function readMetadata(string $vm_name): array

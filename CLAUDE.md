@@ -36,7 +36,7 @@ php clave app:build
 
 A `SessionContext` DTO flows through pipeline stages in `DefaultCommand`:
 
-`CloneRepo → CloneVm → BootVm → RunClaudeCode`
+`CloneRepo → BootVm → RunClaudeCode`
 
 Each stage populates fields on `SessionContext` and calls `$next()`. Teardown runs via `SessionTeardown` in both a `finally` block and SIGINT/SIGTERM signal handler.
 
@@ -53,7 +53,6 @@ Future stages (not yet implemented): `DiscoverGateway → CreateSshTunnel` (to b
 ### DTOs
 
 - **SessionContext** — mutable pipeline state (session_id, vm_name, vm_ip, clone_path, etc.)
-- **ServiceConfig** — readonly database/Redis config
 - **OnExit** — enum (Keep, Merge, Discard) for clone handling on session end
 
 ## Conventions

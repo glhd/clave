@@ -5,7 +5,7 @@ namespace App\Commands;
 use App\Support\TartManager;
 use Illuminate\Filesystem\Filesystem;
 use LaravelZero\Framework\Commands\Command;
-use function App\home_path;
+use function App\user_config_path;
 
 class StatusCommand extends Command
 {
@@ -29,7 +29,7 @@ class StatusCommand extends Command
 		$rows = $vms->map(function(array $vm) use ($fs) {
 			$name = $vm['name'];
 			$state = $vm['state'] ?? 'unknown';
-			$metadata_path = home_path(".config/clave/vms/{$name}.json");
+			$metadata_path = user_config_path("vms/{$name}.json");
 			$project = '-';
 			
 			if ($fs->exists($metadata_path)) {

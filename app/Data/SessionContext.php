@@ -21,8 +21,6 @@ class SessionContext
 	
 	public ?string $clone_branch = null;
 	
-	public ?ServiceConfig $services = null;
-	
 	public Recipe $recipe = Recipe::Unknown;
 	
 	public array $tunnel_ports = [80, 8080, 3306, 6379];

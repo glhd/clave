@@ -3,10 +3,13 @@
 namespace App\Prompts\Renderers;
 
 use App\Prompts\Heading;
+use Laravel\Prompts\Themes\Default\Concerns\InteractsWithStrings;
 use Laravel\Prompts\Themes\Default\Renderer;
 
 class HeaderRenderer extends Renderer
 {
+	use InteractsWithStrings;
+
 	public function __invoke(Heading $header): string
 	{
 		$width = $header->terminal()->cols() - 6;
@@ -17,8 +20,8 @@ class HeaderRenderer extends Renderer
 		$this->line($this->cyan($draw['tl'].str_repeat($draw['h'], $width).$draw['tr']));
 		
 		foreach ($lines as $line) {
-			$line = mb_str_pad($line, $width - 2, ' ');
-			$this->line($this->cyan("{$draw['v']} ").$this->black($line).$this->cyan(" {$draw['v']}"));
+			$line = $this->pad($line, $width - 2);
+			$this->line($this->cyan("{$draw['v']} ").$this->white($line).$this->cyan(" {$draw['v']}"));
 		}
 		
 		$this->line($this->cyan($draw['bl'].str_repeat($draw['h'], $width).$draw['br']));

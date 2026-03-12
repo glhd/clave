@@ -32,3 +32,10 @@ function home_path(?string $path = null): string
 		? rtrim($home, '/').'/'.ltrim($path, '/')
 		: $home;
 }
+
+function user_config_path(?string $path = null): string
+{
+	return home_path($path !== null
+		? '.config/clave/'.ltrim($path, '/')
+		: '.config/clave');
+}

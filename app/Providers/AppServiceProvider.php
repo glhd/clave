@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use App\Pipelines\SessionSetup;
-use function App\home_path;
+use function App\user_config_path;
 use App\Pipelines\Steps\CheckClaudeAuthentication;
 use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureTartInstalled;
@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
 	{
 		$fs = app(Filesystem::class);
 		
-		$config_dir = home_path('.config/clave');
+		$config_dir = user_config_path();
 		
 		$fs->ensureDirectoryExists($config_dir);
 	}
