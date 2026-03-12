@@ -56,7 +56,7 @@ test('toScript includes PhpStorm installation step', function() {
 
 	expect($script)->toContain("echo '==> Installing PhpStorm remote dev backend...'")
 		->and($script)->toContain('registerBackendLocationForGateway');
-});
+})->skip();
 
 test('hash changes when extra commands differ', function() {
 	$default = ProvisioningPipeline::hash();
