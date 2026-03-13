@@ -15,10 +15,13 @@ class ClaudeCode
 		'GIT_AUTHOR_NAME',
 		'GIT_COMMITTER_EMAIL',
 		'GIT_COMMITTER_NAME',
+		'ITERM_SESSION_ID',
 		'LANG',
 		'LC_ALL',
 		'LC_CTYPE',
 		'NO_COLOR',
+		'TERM_PROGRAM',
+		'TERM_PROGRAM_VERSION',
 		'TZ',
 		'VISUAL',
 	];
