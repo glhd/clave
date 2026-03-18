@@ -12,7 +12,11 @@
 	},
 	"compatibility_flags": [
 		"nodejs_compat"
-	]
+	],
+	"assets": {
+		"directory": "./public/",
+		"binding": "ASSETS"
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

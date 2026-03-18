@@ -9,6 +9,42 @@ const CLI_USER_AGENTS = [
 	'undici/',
 ];
 
+const BOT_USER_AGENTS = [
+	'Discordbot',
+	'Twitterbot',
+	'facebookexternalhit',
+	'LinkedInBot',
+	'Slackbot',
+	'TelegramBot',
+	'WhatsApp',
+	'Bluesky',
+	'Mastodon',
+	'Pleroma',
+	'Misskey',
+	'bot',
+	'crawler',
+	'spider',
+	'preview',
+];
+
+const OG_HTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta property="og:title" content="Clave">
+<meta property="og:description" content="Ephemeral Ubuntu VMs for isolated Claude Code sessions.">
+<meta property="og:image" content="https://clave.run/og-image.png">
+<meta property="og:url" content="https://clave.run">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Clave">
+<meta name="twitter:description" content="Ephemeral Ubuntu VMs for isolated Claude Code sessions.">
+<meta name="twitter:image" content="https://clave.run/og-image.png">
+<meta http-equiv="refresh" content="0;url=https://github.com/${REPO}">
+</head>
+<body><script>window.location.href="https://github.com/${REPO}";</script></body>
+</html>`;
+
 const SCRIPT = `
 #!/bin/sh
 
@@ -83,7 +119,14 @@ export default {
 				headers: {'content-type': 'text/x-sh; charset=utf-8'},
 			});
 		}
-		
+
+		const ua_lower = ua.toLowerCase();
+		if (BOT_USER_AGENTS.some((bot) => ua_lower.includes(bot.toLowerCase()))) {
+			return new Response(OG_HTML, {
+				headers: {'content-type': 'text/html; charset=utf-8'},
+			});
+		}
+
 		return Response.redirect(GITHUB_URL, 302);
 	},
 } satisfies ExportedHandler<Env>;
