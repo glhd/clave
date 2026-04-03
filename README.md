@@ -39,7 +39,7 @@ cd /path/to/your/project
 clave --isolate
 ```
 
-Before spinning up a fresh VM, clave will create a local git clone of your working directory. (This is similarly efficient as a 
+Before spinning up a fresh VM, clave will create a local git clone of your working directory. (This is similarly efficient as a
 worktree, but has a copy of your full git history.) Clave will then mount that clone into the VM, keeping any changes made inside
 the VM completely isolated from your project until you quit. Once you quit, you will be prompted to decide what to do with the
 changes before the clone is cleaned up.
@@ -68,15 +68,40 @@ Add a `.clave.json` file to your project root to customize VM setup for your pro
 
 ### Options
 
-| Key          | Type     | Description                                                               |
-|--------------|----------|---------------------------------------------------------------------------|
-| `base_image` | string   | Custom Tart VM base image. Defaults to `ghcr.io/cirruslabs/ubuntu:latest` |
-| `cpus`       | integer  | CPUs allocated to the VM. Defaults to `CLAVE_VM_CPUS` (4)                 |
-| `memory`     | integer  | Memory (MB) allocated to the VM. Defaults to `CLAVE_VM_MEMORY` (8192)     |
-| `provision`  | string[] | Bash commands to run during VM provisioning                               |
-| `env`        | string[] | Environment variable names to pass through from your host into the VM     |
+| Key          | Type     | Description                                                                    |
+|--------------|----------|--------------------------------------------------------------------------------|
+| `base_image` | string   | Custom Tart VM base image. Defaults to `ghcr.io/cirruslabs/ubuntu:latest`      |
+| `cpus`       | integer  | CPUs allocated to the VM. Defaults to `CLAVE_VM_CPUS` (4)                      |
+| `memory`     | integer  | Memory (MB) allocated to the VM. Defaults to `CLAVE_VM_MEMORY` (8192)          |
+| `provision`  | string[] | Bash commands to run during VM provisioning                                    |
+| `env`        | string[] | Environment variable names to pass through from your host into the VM          |
+| `shims`      | string[] | Host commands to proxy into the VM (see [Host Proxy Shims](#host-proxy-shims)) |
 
 See the [`tart` documentation](https://tart.run/quick-start/#vm-images) for a list of available base images.
+
+### Host Proxy Shims
+
+Shims let Claude Code running inside the VM transparently execute specific commands on your Mac host. This is useful for tools that
+only exist on macOS or GUI-based CLIs like `playwright-cli`.
+
+When a shim is invoked inside the VM, it sends the command over a Unix socket tunnel to a proxy daemon running on the host, which
+executes it and returns the output. From Claude's perspective, it's a normal command.
+
+**Shims are opt in and disabled by default.**
+
+Enable shims in your `.clave.json`:
+
+```json
+{
+  ...
+  "shims": [
+    "playwright-cli"
+  ]
+}
+```
+
+> **Note:** Adding shims for the first time requires reprovisioning the base VM. The shim symlinks themselves 
+> are created fresh each session, so changes to the `shims` list take effect next run without reprovisioning.
 
 ### Environment Variables Passed Through Automatically
 
