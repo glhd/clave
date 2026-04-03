@@ -28,6 +28,7 @@ class ProjectConfig
 			cpus: isset($data['cpus']) ? (int) $data['cpus'] : null,
 			memory: isset($data['memory']) ? (int) $data['memory'] : null,
 			model: $data['model'] ?? null,
+			shims: $data['shims'] ?? [],
 		);
 	}
 	
@@ -38,6 +39,7 @@ class ProjectConfig
 		public readonly ?int $cpus = null,
 		public readonly ?int $memory = null,
 		public readonly ?string $model = null,
+		public readonly array $shims = [],
 	) {
 	}
 	

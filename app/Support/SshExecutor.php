@@ -75,7 +75,7 @@ class SshExecutor
 		return $exit_code;
 	}
 	
-	public function startTunnels(array $ports): mixed
+	public function startTunnels(array $ports, ?string $socket_forward = null): mixed
 	{
 		$args = $this->buildSshArgs();
 		$args[] = '-N';
@@ -83,6 +83,11 @@ class SshExecutor
 		foreach ($ports as $port) {
 			$args[] = '-R';
 			$args[] = "{$port}:localhost:{$port}";
+		}
+		
+		if ($socket_forward !== null) {
+			$args[] = '-R';
+			$args[] = $socket_forward;
 		}
 		
 		$args[] = "{$this->user}@{$this->host}";

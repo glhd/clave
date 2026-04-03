@@ -12,7 +12,7 @@ class ProvisioningPipeline
 				'commands' => [
 					'sudo apt-get update -y',
 					'sudo apt-get upgrade -y',
-					'sudo apt-get install -y curl git unzip software-properties-common jq',
+					'sudo apt-get install -y curl git unzip software-properties-common jq socat',
 				],
 			],
 			'php' => [
@@ -80,6 +80,45 @@ class ProvisioningPipeline
 					BASH,
 					'echo \'export PATH="$HOME/.local/bin:$PATH"\' >> /home/admin/.bashrc',
 					'sudo -H -u admin bash -l -c "claude --version"',
+				],
+			],
+			'claveProxy' => [
+				'label' => 'Installing clave-exec shim runner',
+				'commands' => [
+					<<<'BASH'
+					sudo tee /usr/local/bin/clave-exec > /dev/null << 'SCRIPT'
+					#!/usr/bin/env bash
+					set -euo pipefail
+					
+					SOCKET="${CLAVE_PROXY_SOCKET:-/home/admin/.clave/proxy.sock}"
+					CMD="$(basename "$0")"
+					
+					if [[ "$CMD" == "clave-exec" ]]; then
+					    CMD="$1"
+					    shift
+					fi
+					
+					ARGS_JSON=$([ $# -gt 0 ] && printf '%s\n' "$@" | jq -R . | jq -s . || echo '[]')
+					PAYLOAD=$(jq -cn --arg cmd "$CMD" --arg cwd "$(pwd)" --argjson args "$ARGS_JSON" \
+					    '{cmd: $cmd, args: $args, cwd: $cwd}')
+					
+					RESPONSE=$(printf '%s\n' "$PAYLOAD" | socat - "UNIX-CONNECT:${SOCKET}")
+					
+					{
+					    read -r STDOUT_B64
+					    read -r STDERR_B64
+					    read -r EXIT_CODE
+					} < <(printf '%s' "$RESPONSE" | jq -r '(.stdout // "" | @base64), (.stderr // "" | @base64), (.exit_code // 1 | tostring)')
+					
+					printf '%s' "$STDOUT_B64" | base64 -d
+					printf '%s' "$STDERR_B64" | base64 -d >&2
+					exit "${EXIT_CODE:-1}"
+					SCRIPT
+					BASH,
+					'sudo chmod +x /usr/local/bin/clave-exec',
+					'sudo mkdir -p /home/admin/.clave/shims',
+					'sudo chown -R admin:admin /home/admin/.clave',
+					'echo \'export PATH="/home/admin/.clave/shims:$PATH"\' | sudo tee /etc/profile.d/clave-shims.sh',
 				],
 			],
 			'git' => [

@@ -12,6 +12,7 @@ use App\Pipelines\Steps\DetectRecipe;
 use App\Pipelines\Steps\EnsureTartInstalled;
 use App\Pipelines\Steps\EnsureVmExists;
 use App\Pipelines\Steps\GetGitBranch;
+use App\Pipelines\Steps\InstallHostShims;
 use App\Pipelines\Steps\LoadProjectConfig;
 use App\Pipelines\Steps\ResolveVm;
 use App\Pipelines\Steps\SetupClaudeCode;
@@ -38,6 +39,7 @@ class SessionSetup extends SessionPipeline
 			ResolveVm::class,
 			BootVm::class,
 			SetupClaudeCode::class,
+			InstallHostShims::class,
 			CreateSshTunnels::class,
 			// PrintGatewayLink::class,
 		];

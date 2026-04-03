@@ -28,6 +28,10 @@ class SessionContext
 	public ?IdeContext $ide = null;
 	
 	public mixed $tunnel_process = null;
+
+	public ?string $proxy_socket_path = null;
+
+	public mixed $proxy_daemon_process = null;
 	
 	public bool $resumed = false;
 	

@@ -80,6 +80,10 @@ class ClaudeCode
 			$env[] = 'CLAUDE_CODE_SSE_PORT='.escapeshellarg((string) $context->ide->port);
 			$env[] = 'ENABLE_IDE_INTEGRATION=true';
 		}
+
+		if ($context->proxy_socket_path !== null) {
+			$env[] = 'CLAVE_PROXY_SOCKET=/home/admin/.clave/proxy.sock';
+		}
 		
 		return $env ? implode(' ', $env).' ' : '';
 	}

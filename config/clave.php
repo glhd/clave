@@ -22,6 +22,10 @@ return [
 		],
 	],
 	
+	'proxy' => [
+		'shims' => [],
+	],
+
 	'anthropic_api_key' => env('ANTHROPIC_API_KEY'),
 	'oauth_token' => env('CLAUDE_CODE_OAUTH_TOKEN'),
 	'auth_file' => env('CLAVE_AUTH_FILE', ($_SERVER['HOME'] ?? getenv('HOME')).'/.config/clave/auth.json'),

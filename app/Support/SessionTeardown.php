@@ -30,6 +30,7 @@ class SessionTeardown
 		
 		heading('Cleaning Up');
 		
+		rescue(fn() => $this->killProxyDaemon($context));
 		rescue(fn() => $this->killTunnels($context));
 		rescue(fn() => $this->suspendOrDeleteVm($context));
 		rescue(fn() => $this->handleClone($context));
@@ -42,6 +43,17 @@ class SessionTeardown
 	protected function checklist(string $item): ChecklistItem
 	{
 		return checklist('Cleaning up virtual machine', $item);
+	}
+	
+	protected function killProxyDaemon(SessionContext $context): void
+	{
+		if ($context->proxy_daemon_process !== null) {
+			$context->proxy_daemon_process->stop();
+		}
+		
+		if ($context->proxy_socket_path !== null && file_exists($context->proxy_socket_path)) {
+			unlink($context->proxy_socket_path);
+		}
 	}
 	
 	protected function killTunnels(SessionContext $context): void
